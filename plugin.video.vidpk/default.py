@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.DEBUG)
 import urllib, urllib2, urlparse, re, string, xml.etree.ElementTree as ET
 import time
 import simplejson as json
-from utils import urldecode
+import HTMLParser
 
 try:
     from sqlite3 import dbapi2 as sqlite
@@ -22,6 +22,21 @@ __date__ = '07-07-2013'
 __version__ = '0.0.1'
 __settings__ = xbmcaddon.Addon(id='plugin.video.vidpk')
 
+
+def urldecode(query):
+    """
+    parses querystrings
+
+    """
+    d = {}
+    a = query.split('&')
+    for s in a:
+        if '=' in s:
+            k,v = map(urllib.unquote_plus, s.split('='))
+            if v == 'None':
+                v = None
+            d[k] = v
+    return d
 
 
 class VidpkPlugin(object):
@@ -188,6 +203,7 @@ class VidpkPlugin(object):
         return li
 
 #######################################3
+    perPage = 10 # items per page
 
     channels = [
         ('Geo', '1'),
@@ -240,64 +256,94 @@ class VidpkPlugin(object):
 
         return self.set_stream_url(url)
 
+    def sort_dict_list(self, inlist):
+        outlist = []
+        logging.debug(inlist)
+        logging.debug('00000000000000000000000000000000000000')
+        for key in sorted(inlist.iterkeys(), key=lambda k: k[0].isdigit()):
+            logging.debug(key)
+            outlist.append(inlist[key])
+        return outlist
+
     def action_browse_episodes(self):
-        url_template = 'http://vidpk.com/ajax/getChannelVideos.php?channelid=%s&page=%s'
-        url = url_template % (self.args['showid'], '1')
+        currPage = int(self.args['currPage'])
+        url_template = 'http://vidpk.com/ajax/getChannelVideos.php?channelid=%s&page=%s&per_page=%d'
+        url = url_template % (self.args['showid'], currPage, self.perPage)
 
-        #logging.debug('browse show: %s' % url)
+        logging.debug('browse show: %s' % url)
 
-        data = self.fetch(url, self.cache_timeout).read()
-        jdata = json.loads(data)
+        page = self.fetch(url, self.cache_timeout).read()
+        jdata = json.loads(page)
 
         #logging.debug(jdata)
-
         icon_template = 'http://thumb4.vidpk.com/1_%s.jpg'
 
         for episode in sorted(jdata):
-            if (episode == 'meta'):
-                continue;
-
-            thumb = icon_template % jdata[episode]['VID']
-
             data = {}
             data.update(self.args)
-            data['Title'] = jdata[episode]['title']
-            data['Thumb'] = thumb
-            data['action'] = 'play_video'
-            data['clipid'] = jdata[episode]['VID']
-            data['last_updated_pretty'] = jdata[episode]['last_updated']
-            data['last_updated'] = jdata[episode]['addtime']
-            self.add_list_item(data, is_folder=False)
+
+            if (episode == 'meta'):
+                total = jdata[episode]['count']
+                remaining = total - (currPage * self.perPage)
+
+                if (remaining > 0):
+                    data['Title'] = '[B]NEXT PAGE: ' + str(currPage + 1) + ' >>[/B]'
+                    data['action'] = 'browse_episodes'
+                    data['currPage'] = currPage + 1
+                    self.add_list_item(data)
+            else:
+                thumb = icon_template % jdata[episode]['VID']
+                tagline = jdata[episode]['title']
+
+                data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
+                data['Thumb'] = thumb
+                data['action'] = 'play_video'
+                data['clipid'] = jdata[episode]['VID']
+                data['last_updated_pretty'] = jdata[episode]['last_updated']
+                data['last_updated'] = jdata[episode]['addtime']
+                self.add_list_item(data, is_folder=False)
+
         self.end_list('episodes')
 
 
     def action_browse_channel(self):
-        url_template = 'http://vidpk.com/ajax/getStationChannels.php?stationid=%s&page=%s&per_page=%s'
-        url = url_template % (self.args['entry_id'], '1', '10')
-        #logging.debug('browse channel: %s' % url)
+        currPage = int(self.args['currPage'])
+        url_template = 'http://vidpk.com/ajax/getStationChannels.php?stationid=%s&page=%d&per_page=%d'
+        url = url_template % (self.args['entry_id'], currPage, self.perPage)
+        logging.debug('browse channel: %s' % url)
 
-        data = self.fetch(url, self.cache_timeout).read()
-        jdata = json.loads(data)
+        page = self.fetch(url, self.cache_timeout).read()
+        jdata = json.loads(page)
 
         #logging.debug(jdata)
 
         icon_template = 'http://vidpk.com/images/channels/%s.jpg'
 
-        for show in jdata:
-            if (show == 'meta'):
-                continue;
-
-            thumb = icon_template % jdata[show]['CHID']
-
+        for show in sorted(jdata):
             data = {}
             data.update(self.args)
-            data['Title'] = jdata[show]['name']
-            data['Thumb'] = thumb
-            data['action'] = 'browse_episodes'
-            data['showid'] = jdata[show]['CHID']
-            data['last_updated_pretty'] = jdata[show]['last_updated']
-            data['last_updated'] = jdata[show]['lastupdated']
-            self.add_list_item(data)
+
+            if (show == 'meta'):
+                total = jdata[show]['count']
+                remaining = total - (currPage * self.perPage)
+
+                if (remaining > 0):
+                    # next page
+                    data['Title'] = '[B]NEXT PAGE: ' + str(currPage + 1) + ' >>[/B]'
+                    data['action'] = 'browse_channel'
+                    data['currPage'] = currPage + 1
+                    self.add_list_item(data)
+            else:
+                thumb = icon_template % jdata[show]['CHID']
+                tagline = jdata[show]['name']
+
+                data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
+                data['Thumb'] = thumb
+                data['action'] = 'browse_episodes'
+                data['showid'] = jdata[show]['CHID']
+                data['last_updated_pretty'] = jdata[show]['last_updated']
+                data['last_updated'] = jdata[show]['lastupdated']
+                self.add_list_item(data)
         self.end_list()
 
 
@@ -306,7 +352,8 @@ class VidpkPlugin(object):
             self.add_list_item({
                 'Title': ch,
                 'action': 'browse_channel',
-                'entry_id': id
+                'entry_id': id,
+                'currPage': 1
             })
         self.end_list('movies', [xbmcplugin.SORT_METHOD_LABEL])
 
