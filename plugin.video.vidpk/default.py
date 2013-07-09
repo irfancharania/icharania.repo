@@ -18,8 +18,8 @@ except:
 __plugin__ = "vidpk"
 __author__ = 'Irfan Charania'
 __url__ = ''
-__date__ = '07-07-2013'
-__version__ = '0.0.1'
+__date__ = '08-07-2013'
+__version__ = '0.0.4'
 __settings__ = xbmcaddon.Addon(id='plugin.video.vidpk')
 
 
@@ -41,6 +41,32 @@ def urldecode(query):
 
 class VidpkPlugin(object):
     cache_timeout = 60*60*4
+
+    def connect_to_db(self):
+        path = xbmc.translatePath('special://profile/addon_data/plugin.video.vidpk/')
+        if not os.path.exists(path):
+            os.makedirs(path)
+        self.db_conn = sqlite.connect(os.path.join(path, 'bookmarks.db'))
+        curs = self.db_conn.cursor()
+        curs.execute("""create table if not exists bookmark_folders (
+            id integer primary key,
+            name text,
+            parent_id integer,
+            path text
+        )""")
+
+        curs.execute("""create table if not exists bookmarks (
+            id integer primary key,
+            name text,
+            folder_id integer,
+            plugin_url text
+        )""")
+
+        try:
+            curs.execute("""insert into bookmark_folders (id, name, parent_id, path)
+                        values (?,?,?,?)""", (1,'Bookmarks', 0, 'Bookmarks'))
+        except:
+            pass
 
     def _urlopen(self, url, retry_limit=4):
         retries = 0
@@ -95,24 +121,17 @@ class VidpkPlugin(object):
         return open(cfname)
 
 
-    def get_cache_dir(self):
-        """
-        return an acceptable cache directory.
-
-        """
-        path = xbmc.translatePath('special://profile/addon_data/plugin.video.vidpk/cache/')
-        if not os.path.exists(path):
-            os.makedirs(path)
-        logging.debug('cache path: %s' % path)
-        return path
-
-
     def get_url(self,urldata):
         """
         Constructs a URL back into the plugin with the specified arguments.
 
         """
         return "%s?%s" % (self.script_url, urllib.urlencode(urldata,1))
+
+
+    def get_dialog(self):
+        return xbmcgui.Dialog()
+
 
     def set_stream_url(self, url, info=None):
         """
@@ -136,6 +155,18 @@ class VidpkPlugin(object):
         xbmcplugin.endOfDirectory(self.handle, succeeded=True)
 
 
+    def get_cache_dir(self):
+        """
+        return an acceptable cache directory.
+
+        """
+        path = xbmc.translatePath('special://profile/addon_data/plugin.video.vidpk/cache/')
+        if not os.path.exists(path):
+            os.makedirs(path)
+        logging.debug('cache path: %s' % path)
+        return path
+
+
     def get_setting(self, id):
         """
         return a user-modifiable plugin setting.
@@ -145,7 +176,8 @@ class VidpkPlugin(object):
 
 
     def add_list_item(self, info, is_folder=True, return_only=False,
-                      context_menu_items=None, clear_context_menu=False):
+                      context_menu_items=None, clear_context_menu=False,
+                      bookmark_parent=None, bookmark_id=None, bookmark_folder_id=None):
         """
         Creates an XBMC ListItem from the data contained in the info dict.
 
@@ -166,6 +198,20 @@ class VidpkPlugin(object):
         """
         if context_menu_items is None:
             context_menu_items = []
+
+        if is_folder:
+            if bookmark_parent is None:
+                bookmark_url = self.get_url({'action': 'add_to_bookmarks', 'url': self.get_url(info)})
+                context_menu_items.append(("Bookmark", "XBMC.RunPlugin(%s)" % (bookmark_url,)))
+            else:
+                bminfo = {'action': 'remove_from_bookmarks', 'url': self.get_url(info), 'folder_id': bookmark_parent}
+                if bookmark_id is not None:
+                    bminfo['bookmark_id'] = bookmark_id
+                elif bookmark_folder_id is not None:
+                    bminfo['bookmark_folder_id'] = bookmark_folder_id
+
+                bookmark_url = self.get_url(bminfo)
+                context_menu_items.append(("Remove From Bookmarks", "XBMC.RunPlugin(%s)" % (bookmark_url,)))
 
         info.setdefault('Thumb', '')
         info.setdefault('Icon', info['Thumb'])
@@ -201,6 +247,151 @@ class VidpkPlugin(object):
             return xbmcplugin.addDirectoryItem(**kwargs)
 
         return li
+
+    def get_modal_keyboard_input(self, default=None, heading=None, hidden=False):
+        keyb = xbmc.Keyboard(default, heading, hidden)
+        keyb.doModal()
+        val = keyb.getText()
+        if keyb.isConfirmed():
+            return val
+        return None
+
+    def get_existing_bookmarks(self):
+        fpath = os.path.join(self.plugin.get_cache_dir(), 'vidpk.%s.categories.cache' % (self.get_cache_key(),))
+
+
+    def add_bookmark_folder(self):
+        curs = self.db_conn.cursor()
+        curs.execute("select id, name, parent_id, path from bookmark_folders order by path desc")
+        rows = curs.fetchall()
+        items = [r[3] for r in rows]
+        dialog = self.get_dialog()
+        val = dialog.select("Select a Parent for the New Folder", items)
+        if val == -1:
+            return None
+        parent = rows[val]
+        name = self.get_modal_keyboard_input('New Folder', 'Enter the name for the new folder')
+
+        if name is None:
+            return None
+
+        newpath = parent[3]+"/"+name
+        curs = self.db_conn.cursor()
+        curs.execute("select * from bookmark_folders where path=?", (newpath,))
+        if curs.fetchall():
+            dialog.ok("Failed!", "Couldn't create folder: %s because it already exists" % (newpath,))
+            return None
+
+        curs.execute("insert into bookmark_folders (name, parent_id, path) values (?, ?, ?)", (name, parent[0], newpath))
+        curs.execute("select id, name, parent_id, path from bookmark_folders where path=?", (newpath,))
+        self.db_conn.commit()
+        return curs.fetchall()[0]
+
+
+    def action_add_to_bookmarks(self):
+        curs = self.db_conn.cursor()
+        curs.execute("select id, name, parent_id, path from bookmark_folders order by path asc")
+        rows = curs.fetchall()
+        logging.debug(rows)
+        items = ["(New Folder)"]
+        items += [r[3] for r in rows]
+        dialog = self.get_dialog()
+        val = dialog.select("Select a Bookmark Folder", items)
+        logging.debug("VAL:%s" % (val,))
+        if val == -1:
+            return xbmcplugin.endOfDirectory(self.handle, succeeded=False)
+
+        elif val == 0:
+            folder = self.add_bookmark_folder()
+            if not folder:
+                return xbmcplugin.endOfDirectory(self.handle, succeeded=False)
+        else:
+            logging.debug("ITEMS:%s" % (items,))
+            logging.debug("ROWS:%s" % (rows,))
+            folder = [r for r in rows if r[3]==items[val]][0]
+
+        bm = urldecode(self.args['url'].split("?",1)[1])
+        name = self.get_modal_keyboard_input(bm['Title'], 'Bookmark Title')
+        if name is None:
+            return None
+
+        curs.execute("select * from bookmarks where folder_id = ? and plugin_url = ?", (folder[0], self.args['url']))
+        if curs.fetchall():
+            dialog.ok("Bookmark Already Exists", "This location is already bookmarked in %s" % (folder[3],))
+            return None
+
+        curs.execute("insert into bookmarks (name, folder_id, plugin_url) values (?,?,?)", (name, folder[0], self.args['url']))
+        self.db_conn.commit()
+
+        dialog.ok("Success!", "%s has been bookmarked!" % (name,))
+        return xbmcplugin.endOfDirectory(self.handle, succeeded=False)
+
+    def action_browse_bookmarks(self):
+        folder_id = int(self.args['folder_id'])
+        curs = self.db_conn.cursor()
+        curs.execute("select id, name, parent_id, path from bookmark_folders where parent_id = ?", (folder_id,))
+        for folder in curs.fetchall():
+            self.add_list_item({
+                'Thumb': self.get_resource_path("images", "bookmark.png"),
+                'folder_id': folder[0],
+                'Title': "[%s]" % (folder[1],),
+                'action': 'browse_bookmarks',
+            }, bookmark_parent=folder_id, bookmark_folder_id=folder[0])
+
+        curs.execute("select id, name, plugin_url, folder_id from bookmarks where folder_id = ?", (folder_id,))
+        logging.debug("Checking For Bookmarks")
+        bookmarks = curs.fetchall()
+        if not bookmarks:
+            self.add_list_item({'Title': '-no bookmarks-'})
+
+        else:
+            for bm in bookmarks:
+                data = urldecode(bm[2].split("?", 1)[1])
+                data['Title'] = bm[1]
+                self.add_list_item(data, is_folder=True, bookmark_parent=bm[3], bookmark_id=bm[0])
+
+        self.end_list(sort_methods=(xbmcplugin.SORT_METHOD_LABEL,))
+
+    def action_remove_from_bookmarks(self):
+        logging.debug("REMOVE BOOKMARK: %s" % (self.args['url'],))
+        is_folder = bool(self.args.get('bookmark_folder_id', False))
+        parent_id = self.args['folder_id']
+        if is_folder:
+            return self.remove_folder_from_bookmarks(parent_id=parent_id, folder_id=self.args['bookmark_folder_id'])
+        else:
+            return self.remove_bookmark_from_bookmarks(parent_id=parent_id, bookmark_id=self.args['bookmark_id'])
+
+
+    def remove_folder_from_bookmarks(self, parent_id, folder_id):
+        curs = self.db_conn.cursor()
+        curs.execute("select id, name, parent_id, path from bookmark_folders where parent_id = ? and id = ?", (parent_id, folder_id))
+        record = curs.fetchall()[0]
+        dialog = self.get_dialog()
+        if dialog.yesno("Are you Sure?", "Are you sure you wish to delete the bookmark folder: %s\n(All Bookmarks and Folders within it will be deleted!)" % (record[3],)):
+            logging.debug("BM:Removing Bookmark Folder!")
+            curs.execute("select id from bookmark_folders where path like ?", (record[3]+"%",))
+            rows = curs.fetchall()
+            for row in rows:
+                logging.debug("deleting row: %s" % (row,))
+                curs.execute("delete from bookmark_folders where id=?", row)
+                curs.execute("delete from bookmarks where folder_id=?", row)
+            self.db_conn.commit()
+        return xbmc.executebuiltin("Container.Refresh")
+
+
+    def remove_bookmark_from_bookmarks(self, parent_id, bookmark_id):
+        curs = self.db_conn.cursor()
+        curs.execute("select id, name, folder_id, plugin_url from bookmarks where folder_id = ? and id = ?", (parent_id, bookmark_id))
+        record = curs.fetchall()[0]
+        dialog = self.get_dialog()
+        if dialog.yesno("Are you Sure?", "Are you sure you wish to delete the bookmark: %s" % (record[1],)):
+            logging.debug("BM:Removing Bookmark!")
+            curs.execute("delete from bookmarks where folder_id = ? and id = ?", (parent_id, bookmark_id))
+            self.db_conn.commit()
+        else:
+            logging.debug("They Said No?")
+        return xbmc.executebuiltin("Container.Refresh")
+
 
 #######################################3
     perPage = 20 # items per page
@@ -393,10 +584,14 @@ class VidpkPlugin(object):
         self.end_list('movies', [xbmcplugin.SORT_METHOD_LABEL])
 
     def action_plugin_root(self):
-        for id, desc, link in self.menu:
-            if (id == 3): action = 'get_channels'
-            else: action = 'browse_episodes_xml'
+        self.add_list_item({
+            'Title': '[B]Bookmarks[/B]',
+            'action': 'browse_bookmarks',
+            'folder_id': 1
+        }, bookmark_parent=0)
 
+        for id, desc, link in self.menu:
+            action = 'get_channels' if (id == 3) else 'browse_episodes_xml'
             self.add_list_item({
                 'Title': desc,
                 'action': action,
@@ -419,6 +614,16 @@ class VidpkPlugin(object):
         return action_method()
 
 
+    def check_cache(self):
+        cachedir = self.get_cache_dir()
+        version_file = os.path.join(cachedir, 'version.' + __version__)
+        if not os.path.exists(version_file):
+            shutil.rmtree(cachedir)
+            os.mkdir(cachedir)
+            f = open(os.path.join(cachedir,'version.' + __version__), 'w')
+            f.write("\n")
+            f.close()
+
     def __init__(self, script_url, handle, querystring):
         self.script_url = script_url
         self.handle = int(handle)
@@ -429,8 +634,8 @@ class VidpkPlugin(object):
         else:
             self.querystring = querystring
             self.args = {}
-        #self.connect_to_db()
-        #self.check_cache()
+        self.connect_to_db()
+        self.check_cache()
         logging.debug("Constructed Plugin %s" % (self.__dict__,))
 
 
