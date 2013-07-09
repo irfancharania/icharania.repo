@@ -203,7 +203,14 @@ class VidpkPlugin(object):
         return li
 
 #######################################3
-    perPage = 10 # items per page
+    perPage = 20 # items per page
+
+    menu = [
+        (0, 'Newest Videos', 'http://vidpk.com/rss.php' ),
+        (1, 'Featured Videos', 'http://vidpk.com/rss.php?type=featured'),
+        (2, 'Most Viewed Videos', 'http://vidpk.com/rss.php?type=views'),
+        (3, 'Browse Channels', 'http://vidpk.com/station.php')
+    ]
 
     channels = [
         ('Geo', '1'),
@@ -256,14 +263,40 @@ class VidpkPlugin(object):
 
         return self.set_stream_url(url)
 
-    def sort_dict_list(self, inlist):
-        outlist = []
-        logging.debug(inlist)
-        logging.debug('00000000000000000000000000000000000000')
-        for key in sorted(inlist.iterkeys(), key=lambda k: k[0].isdigit()):
-            logging.debug(key)
-            outlist.append(inlist[key])
-        return outlist
+    def action_browse_episodes_xml(self):
+        remote_url = self.args['remote_url']
+        logging.debug('browse episodes xml: %s' % remote_url)
+
+        data = self.fetch(remote_url, max_age=self.cache_timeout)
+
+        tree = ET.parse(data)
+        root = tree.getroot()
+
+        episodes = root.findall('channel/item')
+
+        img_regex = 'img src=\"(.*\.jpg)\" '
+        desc_regex = '<p>(.*)</p>'
+
+        for ep in episodes:
+            data = {}
+            data.update(self.args)
+
+            tagline = ep[0].text
+            link = ep[1].text
+            clipid = link.split('/')[3]
+            cdat = ep[2].text.strip()
+
+            thumb = re.search(img_regex, cdat).group(1)
+            desc = re.search(desc_regex, cdat).group(1)
+
+            data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
+            data['Thumb'] = thumb
+            data['action'] = 'play_video'
+            data['clipid'] = clipid
+            data['Plot'] = desc
+            self.add_list_item(data, is_folder=False)
+        self.end_list('episodes')
+
 
     def action_browse_episodes(self):
         currPage = int(self.args['currPage'])
@@ -346,16 +379,31 @@ class VidpkPlugin(object):
                 self.add_list_item(data)
         self.end_list()
 
-
-    def action_plugin_root(self):
+    def action_get_channels(self):
         for ch, id in self.channels:
+            thumb = 'http://vidpk.com/images/stations/%s.png' % id
+            logging.debug(thumb)
             self.add_list_item({
                 'Title': ch,
                 'action': 'browse_channel',
+                'Thumb': thumb,
                 'entry_id': id,
                 'currPage': 1
             })
         self.end_list('movies', [xbmcplugin.SORT_METHOD_LABEL])
+
+    def action_plugin_root(self):
+        for id, desc, link in self.menu:
+            if (id == 3): action = 'get_channels'
+            else: action = 'browse_episodes_xml'
+
+            self.add_list_item({
+                'Title': desc,
+                'action': action,
+                'entry_id': id,
+                'remote_url': link
+            })
+        self.end_list()
 
     def __call__(self):
         """
