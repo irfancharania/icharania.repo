@@ -2,7 +2,7 @@
 <addons>
 <addon id="plugin.video.vidpk"
        name="Vidpk"
-       version="0.0.4"
+       version="0.0.5"
        provider-name="icharania">
   <requires>
     <import addon="xbmc.python" version="1.0"/>

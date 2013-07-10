@@ -9,6 +9,7 @@ import urllib, urllib2, urlparse, re, string, xml.etree.ElementTree as ET
 import time
 import simplejson as json
 import HTMLParser
+from datetime import datetime
 
 try:
     from sqlite3 import dbapi2 as sqlite
@@ -394,13 +395,12 @@ class VidpkPlugin(object):
 
 
 #######################################3
-    perPage = 20 # items per page
+    perPage = 50 # items per page
 
     menu = [
-        (0, 'Newest Videos', 'http://vidpk.com/rss.php' ),
-        (1, 'Featured Videos', 'http://vidpk.com/rss.php?type=featured'),
-        (2, 'Most Viewed Videos', 'http://vidpk.com/rss.php?type=views'),
-        (3, 'Browse Channels', 'http://vidpk.com/station.php')
+        ('Newest Videos', 'http://vidpk.com/rss.php' ),
+        ('Featured Videos', 'http://vidpk.com/rss.php?type=featured'),
+        ('Most Viewed Videos', 'http://vidpk.com/rss.php?type=views')
     ]
 
     channels = [
@@ -498,34 +498,41 @@ class VidpkPlugin(object):
 
         page = self.fetch(url, self.cache_timeout).read()
         jdata = json.loads(page)
+        sjdata = sorted([int(x) for x in jdata if x.isdigit()])
 
         #logging.debug(jdata)
         icon_template = 'http://thumb4.vidpk.com/1_%s.jpg'
 
-        for episode in sorted(jdata):
+        for item in sjdata:
+            episode = str(item)
             data = {}
             data.update(self.args)
 
-            if (episode == 'meta'):
-                total = jdata[episode]['count']
-                remaining = total - (currPage * self.perPage)
+            clipid = jdata[episode]['VID']
+            tagline = jdata[episode]['title']
+            d = datetime.utcfromtimestamp(float(jdata[episode]['addtime']))
+            yr = str(d.year)
+            df = str(d.day).zfill(2) + '.' + str(d.month).zfill(2) + '.' + yr
+            thumb = icon_template % clipid
 
-                if (remaining > 0):
-                    data['Title'] = '[B]NEXT PAGE: ' + str(currPage + 1) + ' >>[/B]'
-                    data['action'] = 'browse_episodes'
-                    data['currPage'] = currPage + 1
-                    self.add_list_item(data)
-            else:
-                thumb = icon_template % jdata[episode]['VID']
-                tagline = jdata[episode]['title']
+            data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
+            data['Thumb'] = thumb
+            data['action'] = 'play_video'
+            data['clipid'] = clipid
+            data['last_updated_pretty'] = jdata[episode]['last_updated']
+            data['Date'] = df
+            data['Year'] = yr
 
-                data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
-                data['Thumb'] = thumb
-                data['action'] = 'play_video'
-                data['clipid'] = jdata[episode]['VID']
-                data['last_updated_pretty'] = jdata[episode]['last_updated']
-                data['last_updated'] = jdata[episode]['addtime']
-                self.add_list_item(data, is_folder=False)
+            self.add_list_item(data, is_folder=False)
+
+        total = jdata['meta']['count']
+        remaining = total - (currPage * self.perPage)
+
+        if (remaining > 0):
+            data['Title'] = '[B]NEXT PAGE: ' + str(currPage + 1) + ' >>[/B]'
+            data['action'] = 'browse_episodes'
+            data['currPage'] = currPage + 1
+            self.add_list_item(data)
 
         self.end_list('episodes')
 
@@ -538,42 +545,49 @@ class VidpkPlugin(object):
 
         page = self.fetch(url, self.cache_timeout).read()
         jdata = json.loads(page)
+        sjdata = sorted([int(x) for x in jdata if x.isdigit()])
 
         #logging.debug(jdata)
 
         icon_template = 'http://vidpk.com/images/channels/%s.jpg'
 
-        for show in sorted(jdata):
+        # all numbered items
+        for item in sjdata:
+            show = str(item)
+
             data = {}
             data.update(self.args)
 
-            if (show == 'meta'):
-                total = jdata[show]['count']
-                remaining = total - (currPage * self.perPage)
+            showid = jdata[show]['CHID']
+            tagline = jdata[show]['name']
+            d = jdata[show]['lastupdated']
+            df = d[8:10] + '.' + d[5:7] + '.' + d[0:4]
+            thumb = icon_template % showid
 
-                if (remaining > 0):
-                    # next page
-                    data['Title'] = '[B]NEXT PAGE: ' + str(currPage + 1) + ' >>[/B]'
-                    data['action'] = 'browse_channel'
-                    data['currPage'] = currPage + 1
-                    self.add_list_item(data)
-            else:
-                thumb = icon_template % jdata[show]['CHID']
-                tagline = jdata[show]['name']
+            data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
+            data['Thumb'] = thumb
+            data['action'] = 'browse_episodes'
+            data['showid'] = showid
+            data['last_updated_pretty'] = jdata[show]['last_updated']
+            data['Date'] = df
+            self.add_list_item(data)
 
-                data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
-                data['Thumb'] = thumb
-                data['action'] = 'browse_episodes'
-                data['showid'] = jdata[show]['CHID']
-                data['last_updated_pretty'] = jdata[show]['last_updated']
-                data['last_updated'] = jdata[show]['lastupdated']
-                self.add_list_item(data)
+        # handle meta
+        total = jdata['meta']['count']
+        remaining = total - (currPage * self.perPage)
+
+        if (remaining > 0):
+            # next page
+            data['Title'] = '[B]NEXT PAGE: ' + str(currPage + 1) + ' >>[/B]'
+            data['action'] = 'browse_channel'
+            data['currPage'] = currPage + 1
+            self.add_list_item(data)
+
         self.end_list()
 
     def action_get_channels(self):
         for ch, id in self.channels:
             thumb = 'http://vidpk.com/images/stations/%s.png' % id
-            logging.debug(thumb)
             self.add_list_item({
                 'Title': ch,
                 'action': 'browse_channel',
@@ -590,14 +604,18 @@ class VidpkPlugin(object):
             'folder_id': 1
         }, bookmark_parent=0)
 
-        for id, desc, link in self.menu:
-            action = 'get_channels' if (id == 3) else 'browse_episodes_xml'
+        for desc, link in self.menu:
             self.add_list_item({
                 'Title': desc,
-                'action': action,
-                'entry_id': id,
+                'action': 'browse_episodes_xml',
                 'remote_url': link
             })
+
+        self.add_list_item({
+            'Title': 'Browse Channels',
+            'action': 'get_channels'
+        })
+
         self.end_list()
 
     def __call__(self):
