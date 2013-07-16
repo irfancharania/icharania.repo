@@ -10,19 +10,25 @@ logging.basicConfig(level=logging.DEBUG)
 import urllib, urllib2, urlparse, re, string
 import time
 import HTMLParser
-
 from datetime import datetime
+
+try:
+    import StorageServer
+except:
+    import storageserverdummy as StorageServer
+cache = StorageServer.StorageServer('plugin.video.paktv', 6)
 
 try:
     from sqlite3 import dbapi2 as sqlite
 except:
     from pysqlite2 import dbapi2 as sqlite
 
+
 __plugin__ = "paktv"
 __author__ = 'Irfan Charania'
 __url__ = ''
 __date__ = '14-07-2013'
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 __settings__ = xbmcaddon.Addon(id='plugin.video.paktv')
 
 
@@ -47,8 +53,7 @@ def urldecode(query):
 
 
 class PaktvPlugin(object):
-#   cache_timeout = 60*60*4
-#
+
     def connect_to_db(self):
         path = xbmc.translatePath('special://profile/addon_data/plugin.video.paktv/')
         if not os.path.exists(path):
@@ -98,35 +103,6 @@ class PaktvPlugin(object):
 #               retries += 1
 #           raise Exception("Failed to retrieve page: %s" %(url,))
 #
-#   def fetch(self, url, max_age=None):
-#       if max_age is None:
-#           return self._urlopen(url)
-#
-#       tmpurl = url
-#       scheme, tmpurl = tmpurl.split("://",1)
-#       netloc, path = tmpurl.split("/",1)
-#       fname = sha.new(path).hexdigest()
-#       _dir = fname[:4]
-#       cacheroot = self.get_cache_dir()
-#       cachepath = os.path.join(cacheroot, netloc, _dir)
-#       if not os.path.exists(cachepath):
-#           os.makedirs(cachepath)
-#
-#       download = True
-#       cfname = os.path.join(cachepath, fname)
-#       if os.path.exists(cfname):
-#           ctime = os.path.getctime(cfname)
-#           if time.time() - ctime < max_age:
-#               download = False
-#
-#       if download:
-#           logging.debug("Fetching: %s" % (url,))
-#           urllib.urlretrieve(url, cfname)
-#       else:
-#           logging.debug("Using Cached: %s" % (url,))
-#
-#       return open(cfname)
-
 
     def get_url(self,urldata):
         """
@@ -160,18 +136,6 @@ class PaktvPlugin(object):
         for sm in sort_methods:
             xbmcplugin.addSortMethod(self.handle, sm)
         xbmcplugin.endOfDirectory(self.handle, succeeded=True)
-
-
-#    def get_cache_dir(self):
-#        """
-#        return an acceptable cache directory.
-#
-#        """
-#        path = xbmc.translatePath('special://profile/addon_data/plugin.video.paktv/cache/')
-#        if not os.path.exists(path):
-#            os.makedirs(path)
-#        logging.debug('cache path: %s' % path)
-#        return path
 
 
     def get_setting(self, id):
@@ -406,17 +370,17 @@ class PaktvPlugin(object):
 #######################################
 
     base_url = 'http://www.thepaktv.me/forums/'
+    section_url_template = 'forumdisplay.php?f=%s'
 
     # supported by url resolver module
     resolvable_sites = [
         ('tube.php', 'Youtube', 'youtube.com'),
         #('daily.php', 'Daily Motion', 'dailymotion.com'),
         #('hb.php', 'Hosting Bulk', 'hostingbulk.com'),
-        #('tune.php', 'TunePK', 'tune.pk'),
+        #('tune.php', 'Tune PK', 'tune.pk'),
         #('vw.php', 'Video Weed', 'videoweed.es'),
     ]
 
-    # frames menu
     frame_menu = [
         ('Ramdan Kareem Programs', 'http://www.paktvnetwork.com/Ads/forum/update3/Today/ramadan.html' ),
         ('Today\'s Top Dramas', 'http://www.paktvnetwork.com/Ads/forum/update3/Today/6.html'),
@@ -426,102 +390,31 @@ class PaktvPlugin(object):
         ('New Arrivals', 'http://www.paktvnetwork.com/Ads/forum/update3/newdramas.html'),
     ]
 
-#    channels = [
-#        ('Geo', '1'),
-#        ('Hum TV', '2'),
-#        ('Aaj TV', '3'),
-#        ('ARY Digital', '4'),
-#        ('ATV', '5'),
-#        ('Express Entertainment', '6'),
-#        ('Indus', '7'),
-#        ('PTV', '8'),
-#        ('TV One', '9'),
-#        ('Urdu 1', '10'),
-#        ('Masala TV', '11'),
-#        ('Khyber TV', '12'),
-#        ('ARY Zauq', '13'),
-#        ('Zaiqa TV', '14'),
-#        ('Dunya TV', '15'),
-#        ('CNBC', '17'),
-#        ('A Plus', '18'),
-#        ('Dawn News', '19'),
-#        ('Geo News', '20'),
-#        ('ARY Musik', '21'),
-#        ('Express News', '22'),
-#        ('ARY News', '23'),
-#        ('Aag TV', '24'),
-#        ('Samaa TV', '25'),
-#        ('Oxygene', '26'),
-#        ('Afghan TV', '27'),
-#        ('Geo Kahani', '28')
-#    ]
+    drama_channel_menu = [
+        ('Geo', '16'),
+        ('ARY Digital', '18'),
+        ('Hum TV', '17'),
+        ('PTV Home', '15'),
+        ('Urdu 1', '954'),
+        ('Geo Kahani', '1118'),
+        ('A Plus', '24'),
+        ('TV One', '19'),
+        ('Express Entertainment', '619'),
+        ('ARY Musik', '25'),
+    ]
 
 ###########################################
-    def fetch(self, url):
+    def get_url_data(self, url):
+        logging.debug("Fetching: %s" % (url,))
+
         headers = { 'User-Agent': user_agent }
         r = requests.get(url, headers=headers)
         return r.content
 
+    def fetch(self, url):
+        return cache.cacheFunction(self.get_url_data, url)
+
 ############################################
-
-
- #   def action_browse_channel(self):
- #       currPage = int(self.args['currPage'])
- #       url_template = 'http://vidpk.com/ajax/getStationChannels.php?stationid=%s&page=%d&per_page=%d'
- #       url = url_template % (self.args['entry_id'], currPage, self.perPage)
- #       logging.debug('browse channel: %s' % url)
- #
- #       page = self.fetch(url, self.cache_timeout).read()
- #       jdata = json.loads(page)
- #
- #       #logging.debug(jdata)
- #
- #       icon_template = 'http://vidpk.com/images/channels/%s.jpg'
- #
- #       for key, val in sorted(jdata.items(), key=lambda x: self.getint(x[0])):
- #           if (key.isdigit()):
- #               data = {}
- #               data.update(self.args)
- #
- #               showid = val['CHID']
- #               tagline = val['name']
- #               d = val['lastupdated']
- #               df = d[8:10] + '.' + d[5:7] + '.' + d[0:4]
- #               thumb = icon_template % showid
- #
- #               data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
- #               data['Thumb'] = thumb
- #               data['action'] = 'browse_episodes'
- #               data['showid'] = showid
- #               data['last_updated_pretty'] = val['last_updated']
- #               data['Date'] = df
- #               self.add_list_item(data)
- #
- #       # handle meta
- #       total = jdata['meta']['count']
- #       remaining = total - (currPage * self.perPage)
- #
- #       if (remaining > 0):
- #           # next page
- #           data['Title'] = '[B]NEXT PAGE: ' + str(currPage + 1) + ' >>[/B]'
- #           data['action'] = 'browse_channel'
- #           data['currPage'] = currPage + 1
- #           self.add_list_item(data)
- #
- #       self.end_list()
- #
- #   def action_get_channels(self):
- #       for ch, id in self.channels:
- #           thumb = 'http://vidpk.com/images/stations/%s.png' % id
- #           self.add_list_item({
- #               'Title': ch,
- #               'action': 'browse_channel',
- #               'Thumb': thumb,
- #               'entry_id': id,
- #               'currPage': 1
- #           })
- #       self.end_list('movies', [xbmcplugin.SORT_METHOD_LABEL])
-
 
     def action_play_video(self):
         remote_url = self.args['remote_url']
@@ -538,7 +431,7 @@ class PaktvPlugin(object):
         return self.set_stream_url(url)
 
 
-    def action_browse_episode(self):
+    def action_get_episode(self):
         remote_url = self.args['remote_url']
         logging.debug('browse episode: %s' % remote_url)
 
@@ -552,10 +445,11 @@ class PaktvPlugin(object):
 
             for txt, desc, lnk in self.resolvable_sites:
                 if (href.find(txt) > 0): # match resolvable site
+
                     v = href.find('v=')
                     if (v > 0):
                         vid = href[v+2:]
-                        tagline = desc + ': ' + l.text
+                        tagline = '[B]' + desc + '[/B]: ' + l.text
 
                         data = {}
                         data.update(self.args)
@@ -566,13 +460,12 @@ class PaktvPlugin(object):
                         data['vid'] = vid
 
                         self.add_list_item(data, is_folder=False)
-
-                break;
+                    break;
 
         self.end_list()
 
 
-    def action_browse_show(self):
+    def action_browse_episodes(self):
         remote_url = self.args['remote_url']
         logging.debug('browse show: %s' % remote_url)
 
@@ -589,7 +482,39 @@ class PaktvPlugin(object):
             link = l.a['href']
 
             data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
-            data['action'] = 'browse_episode'
+            data['action'] = 'get_episode'
+            data['remote_url'] = self.base_url + link
+            self.add_list_item(data)
+        self.end_list()
+
+
+    def action_browse_shows(self):
+        remote_url = self.args['remote_url']
+        logging.debug('browse show: %s' % remote_url)
+
+        data = self.fetch(remote_url)
+        soup = BeautifulSoup(data)
+
+        sub = soup.find('ul', attrs={'data-role': 'listview', 'data-theme': 'd', 'class': 'forumbits'})
+        h = sub.findAll('li')
+        linklist = [x for x in h if x.has_key('id')]
+
+        for l in linklist:
+            data = {}
+            data.update(self.args)
+
+            tagline = HTMLParser.HTMLParser().unescape(l.a.text)
+            link = l.a['href']
+
+
+            if l.a.span:
+                action = 'browse_shows'
+                tagline = '[B]' + tagline + '[/B]'
+            else:
+                action = 'browse_episodes'
+
+            data['Title'] = tagline
+            data['action'] = action
             data['remote_url'] = self.base_url + link
             self.add_list_item(data)
         self.end_list()
@@ -612,10 +537,20 @@ class PaktvPlugin(object):
             link = l['href']
 
             data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
-            data['action'] = 'browse_show'
+            data['action'] = 'browse_episodes'
             data['remote_url'] = link
             self.add_list_item(data)
-        self.end_list()
+        self.end_list(sort_methods=(xbmcplugin.SORT_METHOD_LABEL,))
+
+
+    def action_get_drama_channel_menu(self):
+        for desc, link in self.drama_channel_menu:
+            self.add_list_item({
+                'Title': desc,
+                'action': 'browse_shows',
+                'remote_url': self.base_url + (self.section_url_template % link)
+            })
+        self.end_list(sort_methods=(xbmcplugin.SORT_METHOD_LABEL,))
 
 
     def action_plugin_root(self):
@@ -632,10 +567,10 @@ class PaktvPlugin(object):
                 'remote_url': link
             })
 
-        #self.add_list_item({
-        #    'Title': 'Browse Channels',
-        #    'action': 'get_channels'
-        #})
+        self.add_list_item({
+            'Title': '[B]Browse Pakistani Dramas[/B]',
+            'action': 'get_drama_channel_menu'
+        })
 
         self.end_list()
 
@@ -653,16 +588,6 @@ class PaktvPlugin(object):
         return action_method()
 
 
-#    def check_cache(self):
-#        cachedir = self.get_cache_dir()
-#        version_file = os.path.join(cachedir, 'version.' + __version__)
-#        if not os.path.exists(version_file):
-#            shutil.rmtree(cachedir)
-#            os.mkdir(cachedir)
-#            f = open(os.path.join(cachedir,'version.' + __version__), 'w')
-#            f.write("\n")
-#            f.close()
-#
     def __init__(self, script_url, handle, querystring):
         self.script_url = script_url
         self.handle = int(handle)
@@ -674,7 +599,6 @@ class PaktvPlugin(object):
             self.querystring = querystring
             self.args = {}
         self.connect_to_db()
-        #self.check_cache()
         logging.debug("Constructed Plugin %s" % (self.__dict__,))
 
 
