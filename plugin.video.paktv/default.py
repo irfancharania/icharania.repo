@@ -27,8 +27,8 @@ except:
 __plugin__ = "paktv"
 __author__ = 'Irfan Charania'
 __url__ = ''
-__date__ = '14-07-2013'
-__version__ = '0.0.2'
+__date__ = '17-07-2013'
+__version__ = '0.0.3'
 __settings__ = xbmcaddon.Addon(id='plugin.video.paktv')
 
 
@@ -375,9 +375,9 @@ class PaktvPlugin(object):
     # supported by url resolver module
     resolvable_sites = [
         ('tube.php', 'Youtube', 'youtube.com'),
-        #('daily.php', 'Daily Motion', 'dailymotion.com'),
+        ('daily.php', 'Daily Motion', 'dailymotion.com'),
         #('hb.php', 'Hosting Bulk', 'hostingbulk.com'),
-        #('tune.php', 'Tune PK', 'tune.pk'),
+        ('tune.php', 'Tune PK', 'tune.pk'),
         #('vw.php', 'Video Weed', 'videoweed.es'),
     ]
 
@@ -401,6 +401,29 @@ class PaktvPlugin(object):
         ('TV One', '19'),
         ('Express Entertainment', '619'),
         ('ARY Musik', '25'),
+        ('ATV', '23'),
+    ]
+
+    morning_shows_menu = [
+        ('Morning Shows', '286'),
+        ('Cooking Shows', '141'),
+    ]
+
+    news_shows_menu = [
+        ('Geo News', '26'),
+        ('Express News', '27'),
+        ('Dunya TV', '29'),
+        ('AAJ News', '28'),
+        ('Dawn News', '53'),
+        ('Ary News', '30'),
+        ('CNBC Pak', '735'),
+        ('Sama News', '31'),
+    ]
+
+    ramzan_shows_menu = [
+        ('Ramzan TV Shows', '375'),
+        ('Ramzan Cooking Shows', '376'),
+        ('Ramzan Special Dramas & Telefilms', '400')
     ]
 
 ###########################################
@@ -419,16 +442,36 @@ class PaktvPlugin(object):
     def action_play_video(self):
         remote_url = self.args['remote_url']
         vid = self.args['vid']
-        logging.debug('play video: %s - %s' % (remote_url, vid))
 
         hmf = urlresolver.HostedMediaFile(host=remote_url, media_id=vid)
         if hmf:
             url = hmf.resolve()
-
+            logging.debug('play video: %s' % url)
         else:
             raise Exception('unable to play')
 
         return self.set_stream_url(url)
+
+    # There are a lot of mal-formed links
+    # e.g. <a href='link1'>part of </a><a href='link1'>title</a>
+    # This method will merge them into a unique dictionary
+    def get_clean_dictionary(self, ol):
+        tdic = {}
+        for li in ol:
+            key = li['href']
+            value = li.text
+
+            for txt, desc, lnk in self.resolvable_sites:
+                if (key.find(txt) > 0): # match resolvable site
+
+                    if not (key in tdic):
+                        arr = ['[B]' + desc + '[/B]: ' + value, lnk]
+                        tdic[key] = arr
+                    else:
+                        tdic[key][0] = tdic[key][0] + ' ' + value
+
+                    break
+        return tdic
 
 
     def action_get_episode(self):
@@ -440,27 +483,25 @@ class PaktvPlugin(object):
 
         linklist = soup.find('ol', id='posts').find('blockquote', "postcontent restore").findAll('a')
 
-        for l in linklist:
-            href = l['href']
+        # clean up bad tags
+        tdic = self.get_clean_dictionary(linklist)
 
-            for txt, desc, lnk in self.resolvable_sites:
-                if (href.find(txt) > 0): # match resolvable site
+        for href, ltxt in sorted(tdic.items(), key=lambda x: x[1][0]):
 
-                    v = href.find('v=')
-                    if (v > 0):
-                        vid = href[v+2:]
-                        tagline = '[B]' + desc + '[/B]: ' + l.text
+            v = href.find('v=')
+            if (v > 0):
+                vid = href[v+2:]
+                tagline = ltxt[0]
 
-                        data = {}
-                        data.update(self.args)
+                data = {}
+                data.update(self.args)
 
-                        data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
-                        data['action'] = 'play_video'
-                        data['remote_url'] = lnk
-                        data['vid'] = vid
+                data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
+                data['action'] = 'play_video'
+                data['remote_url'] = ltxt[1]
+                data['vid'] = vid
 
-                        self.add_list_item(data, is_folder=False)
-                    break;
+                self.add_list_item(data, is_folder=False)
 
         self.end_list()
 
@@ -487,6 +528,18 @@ class PaktvPlugin(object):
             self.add_list_item(data)
         self.end_list()
 
+    # identify forum sections/subsections
+    def get_parents(self, linklist):
+        newlist = []
+
+        for l in linklist:
+            if (l.has_key('id')):
+                newlist.append(l)
+            else:
+                parent = newlist[-1]
+                parent['data-has-children'] = True
+
+        return newlist
 
     def action_browse_shows(self):
         remote_url = self.args['remote_url']
@@ -497,7 +550,7 @@ class PaktvPlugin(object):
 
         sub = soup.find('ul', attrs={'data-role': 'listview', 'data-theme': 'd', 'class': 'forumbits'})
         h = sub.findAll('li')
-        linklist = [x for x in h if x.has_key('id')]
+        linklist = self.get_parents(h)
 
         for l in linklist:
             data = {}
@@ -506,8 +559,7 @@ class PaktvPlugin(object):
             tagline = HTMLParser.HTMLParser().unescape(l.a.text)
             link = l.a['href']
 
-
-            if l.a.span:
+            if l.has_key('data-has-children'):
                 action = 'browse_shows'
                 tagline = '[B]' + tagline + '[/B]'
             else:
@@ -517,6 +569,8 @@ class PaktvPlugin(object):
             data['action'] = action
             data['remote_url'] = self.base_url + link
             self.add_list_item(data)
+
+            logging.debug(data)
         self.end_list()
 
 
@@ -543,8 +597,20 @@ class PaktvPlugin(object):
         self.end_list(sort_methods=(xbmcplugin.SORT_METHOD_LABEL,))
 
 
-    def action_get_drama_channel_menu(self):
-        for desc, link in self.drama_channel_menu:
+    def action_get_channel_menu(self):
+        sequence = self.args['sequence']
+        channels = []
+
+        if (sequence == 'drama_channel_menu'):
+            channels = self.drama_channel_menu
+        elif (sequence == 'morning_shows_menu'):
+            channels = self.morning_shows_menu
+        elif (sequence == 'ramzan_shows_menu'):
+            channels = self.ramzan_shows_menu
+        elif (sequence == 'news_shows_menu'):
+            channels = self.news_shows_menu
+
+        for desc, link in channels:
             self.add_list_item({
                 'Title': desc,
                 'action': 'browse_shows',
@@ -568,11 +634,31 @@ class PaktvPlugin(object):
             })
 
         self.add_list_item({
-            'Title': '[B]Browse Pakistani Dramas[/B]',
-            'action': 'get_drama_channel_menu'
+            'Title': '[B]Browse Ramzan Specials[/B]',
+            'action': 'get_channel_menu',
+            'sequence': 'ramzan_shows_menu'
         })
 
+        self.add_list_item({
+            'Title': '[B]Browse Pakistani Dramas[/B]',
+            'action': 'get_channel_menu',
+            'sequence': 'drama_channel_menu'
+        })
+
+        self.add_list_item({
+            'Title': '[B]Browse Morning/Cooking Shows[/B]',
+            'action': 'get_channel_menu',
+            'sequence': 'morning_shows_menu'
+        })
         self.end_list()
+
+        self.add_list_item({
+            'Title': '[B]Browse Current Affairs Talk Shows[/B]',
+            'action': 'get_channel_menu',
+            'sequence': 'news_shows_menu'
+        })
+        self.end_list()
+
 
     def __call__(self):
         """

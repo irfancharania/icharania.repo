@@ -1,5 +1,0 @@
-0.0.2 - Added caching
-      - Added drama section
-      - Submitted fix for dailymotion & tunepk
-
-0.0.1 - Initial release
