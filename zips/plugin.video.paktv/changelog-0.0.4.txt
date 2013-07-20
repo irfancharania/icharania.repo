@@ -1,3 +1,6 @@
+0.0.4 - Added page navigation
+      - Enabled bookmarks
+
 0.0.3 - Fixed duplicate episode link listing
       - Fixed browsing of shows with sub-sections
       - Added more channels

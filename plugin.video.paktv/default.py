@@ -23,12 +23,17 @@ try:
 except:
     from pysqlite2 import dbapi2 as sqlite
 
+try:
+    from addon.common.addon import Addon
+except:
+    from t0mm0.common.addon import Addon
+
 
 __plugin__ = "paktv"
 __author__ = 'Irfan Charania'
 __url__ = ''
-__date__ = '17-07-2013'
-__version__ = '0.0.3'
+__date__ = '20-07-2013'
+__version__ = '0.0.4'
 __settings__ = xbmcaddon.Addon(id='plugin.video.paktv')
 
 
@@ -79,30 +84,7 @@ class PaktvPlugin(object):
                         values (?,?,?,?)""", (1,'Bookmarks', 0, 'Bookmarks'))
         except:
             pass
-#
-#   def _urlopen(self, url, retry_limit=4):
-#       retries = 0
-#       while retries < retry_limit:
-#           logging.debug("fetching %s" % (url,))
-#           url_scheme, netloc, path, query, fragment = urlparse.urlsplit(url)
-#           req = urllib2.Request(url)
-#           req.add_header("Referer", "%s://%s/" % (url_scheme, netloc))
-#           try:
-#               return urllib2.urlopen(req)
-#           except (urllib2.HTTPError, urllib2.URLError), e:
-#               retries += 1
-#           raise Exception("Failed to retrieve page: %s" %(url,))
-#
-#   def _urlretrieve(self, url, filename, retry_limit=4):
-#       retries = 0
-#       while retries < retry_limit:
-#           logging.debug("fetching %s" % (url,))
-#           try:
-#               return urllib.urlretrieve(url, filename)
-#           except (urllib.HTTPError, urllib.URLError), e:
-#               retries += 1
-#           raise Exception("Failed to retrieve page: %s" %(url,))
-#
+
 
     def get_url(self,urldata):
         """
@@ -111,10 +93,10 @@ class PaktvPlugin(object):
         """
         return "%s?%s" % (self.script_url, urllib.urlencode(urldata,1))
 
-#
-#    def get_dialog(self):
-#        return xbmcgui.Dialog()
-#
+
+    def get_dialog(self):
+        return xbmcgui.Dialog()
+
 
     def set_stream_url(self, url, info=None):
         """
@@ -370,24 +352,24 @@ class PaktvPlugin(object):
 #######################################
 
     base_url = 'http://www.thepaktv.me/forums/'
-    section_url_template = 'forumdisplay.php?f=%s'
+    section_url_template = 'forumdisplay.php?f='
 
     # supported by url resolver module
     resolvable_sites = [
         ('tube.php', 'Youtube', 'youtube.com'),
-        ('daily.php', 'Daily Motion', 'dailymotion.com'),
+        #('daily.php', 'Daily Motion', 'dailymotion.com'),
         #('hb.php', 'Hosting Bulk', 'hostingbulk.com'),
-        ('tune.php', 'Tune PK', 'tune.pk'),
-        #('vw.php', 'Video Weed', 'videoweed.es'),
+        #('tune.php', 'Tune PK', 'tune.pk'),
+        ('vw.php', 'Video Weed', 'videoweed.es'),
     ]
 
     frame_menu = [
-        ('Ramdan Kareem Programs', 'http://www.paktvnetwork.com/Ads/forum/update3/Today/ramadan.html' ),
         ('Today\'s Top Dramas', 'http://www.paktvnetwork.com/Ads/forum/update3/Today/6.html'),
         ('Today\'s Talk Shows', 'http://www.paktvnetwork.com/Ads/forum/update3/Shows/5.html'),
         ('Morning Shows', 'http://www.paktvnetwork.com/Ads/forum/update3/MorningShows.html'),
         ('Hit Dramas', 'http://www.paktvnetwork.com/Ads/forum/update3/HitDramas.html'),
         ('New Arrivals', 'http://www.paktvnetwork.com/Ads/forum/update3/newdramas.html'),
+        ('Ramdan Kareem Programs', 'http://www.paktvnetwork.com/Ads/forum/update3/Today/ramadan.html' ),
     ]
 
     drama_channel_menu = [
@@ -447,10 +429,12 @@ class PaktvPlugin(object):
         if hmf:
             url = hmf.resolve()
             logging.debug('play video: %s' % url)
+
+            if url:
+                return self.set_stream_url(url)
         else:
             raise Exception('unable to play')
 
-        return self.set_stream_url(url)
 
     # There are a lot of mal-formed links
     # e.g. <a href='link1'>part of </a><a href='link1'>title</a>
@@ -476,7 +460,7 @@ class PaktvPlugin(object):
 
     def action_get_episode(self):
         remote_url = self.args['remote_url']
-        logging.debug('browse episode: %s' % remote_url)
+        logging.debug('get episode: %s' % remote_url)
 
         data = self.fetch(remote_url)
         soup = BeautifulSoup(data)
@@ -508,25 +492,51 @@ class PaktvPlugin(object):
 
     def action_browse_episodes(self):
         remote_url = self.args['remote_url']
-        logging.debug('browse show: %s' % remote_url)
+        logging.debug('browse episode: %s' % remote_url)
+
+        if ('current_page' in self.args):
+            current_page = int(self.args['current_page'])
+        else:
+            current_page = 1
 
         data = self.fetch(remote_url)
         soup = BeautifulSoup(data)
 
-        linklist = soup.find('ul', id='threads').findAll('h3')
+        container = soup.find('ul', id='threads')
+        if container:
+            linklist = container.findAll('h3')
 
-        for l in linklist:
-            data = {}
-            data.update(self.args)
+            for l in linklist:
+                data = {}
+                data.update(self.args)
 
-            tagline = l.a.text
-            link = l.a['href']
+                tagline = l.a.text
+                link = l.a['href']
 
-            data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
-            data['action'] = 'get_episode'
-            data['remote_url'] = self.base_url + link
-            self.add_list_item(data)
-        self.end_list()
+                data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
+                data['action'] = 'get_episode'
+                data['remote_url'] = self.base_url + link
+                self.add_list_item(data)
+
+            navlink = soup.find('div', attrs={'data-role': 'vbpagenav'})
+            if navlink:
+                total_pages = int(navlink['data-totalpages'])
+                if (total_pages and total_pages > current_page):
+                    pg = remote_url.find('&page=')
+                    url = remote_url[:pg] if pg > 0 else remote_url
+
+                    data['Title'] = '[B]>>> Next Page: (%d of %d)[/B]' % (current_page + 1, total_pages)
+                    data['action'] = 'browse_episodes'
+                    data['remote_url'] = url + '&page=' + str(current_page + 1)
+                    data['current_page'] = str(current_page + 1)
+                    self.add_list_item(data)
+
+            self.end_list()
+
+        else:
+            Addon.show_error_dialog(["No episodes found."])
+            return
+
 
     # identify forum sections/subsections
     def get_parents(self, linklist):
@@ -589,6 +599,10 @@ class PaktvPlugin(object):
 
             tagline = l.text
             link = l['href']
+            fid = re.compile('f(\d+)').findall(link)
+
+            if len(fid) > 0:
+                link = self.base_url + self.section_url_template + fid[0]
 
             data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
             data['action'] = 'browse_episodes'
@@ -614,17 +628,17 @@ class PaktvPlugin(object):
             self.add_list_item({
                 'Title': desc,
                 'action': 'browse_shows',
-                'remote_url': self.base_url + (self.section_url_template % link)
+                'remote_url': self.base_url + (self.section_url_template + link)
             })
         self.end_list(sort_methods=(xbmcplugin.SORT_METHOD_LABEL,))
 
 
     def action_plugin_root(self):
-        #self.add_list_item({
-        #    'Title': '[B]Bookmarks[/B]',
-        #    'action': 'browse_bookmarks',
-        #    'folder_id': 1
-        #}, bookmark_parent=0)
+        self.add_list_item({
+            'Title': '[B]Bookmarks[/B]',
+            'action': 'browse_bookmarks',
+            'folder_id': 1
+        }, bookmark_parent=0)
 
         for desc, link in self.frame_menu:
             self.add_list_item({
@@ -650,7 +664,6 @@ class PaktvPlugin(object):
             'action': 'get_channel_menu',
             'sequence': 'morning_shows_menu'
         })
-        self.end_list()
 
         self.add_list_item({
             'Title': '[B]Browse Current Affairs Talk Shows[/B]',
