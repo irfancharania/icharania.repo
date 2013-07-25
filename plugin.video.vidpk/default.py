@@ -19,8 +19,8 @@ except:
 __plugin__ = "vidpk"
 __author__ = 'Irfan Charania'
 __url__ = ''
-__date__ = '08-07-2013'
-__version__ = '0.0.4'
+__date__ = '25-07-2013'
+__version__ = '0.0.7'
 __settings__ = xbmcaddon.Addon(id='plugin.video.vidpk')
 
 
@@ -259,6 +259,19 @@ class VidpkPlugin(object):
 
     def get_existing_bookmarks(self):
         fpath = os.path.join(self.plugin.get_cache_dir(), 'vidpk.%s.categories.cache' % (self.get_cache_key(),))
+
+
+    def get_resource_path(self, *path):
+        """
+        Returns a full path to a plugin resource.
+
+        eg. self.get_resource_path("images", "some_image.png")
+
+        """
+        p = os.path.join(__settings__.getAddonInfo('path'), 'resources', *path)
+        if os.path.exists(p):
+            return p
+        return ''
 
 
     def add_bookmark_folder(self):
@@ -562,7 +575,10 @@ class VidpkPlugin(object):
                 tagline = val['name']
                 d = val['lastupdated']
                 df = d[8:10] + '.' + d[5:7] + '.' + d[0:4]
-                thumb = icon_template % showid
+
+                thumb = self.get_resource_path('images', showid + '.jpg')
+                if len(thumb) == 0:
+                    thumb = icon_template % showid
 
                 data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
                 data['Thumb'] = thumb
