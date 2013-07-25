@@ -1,0 +1,7 @@
+<settings>
+   <setting id="dailymotion" type="bool" label="30000" default="false"/>
+   <setting id="hostingbulk" type="bool" label="30001" default="false"/>
+   <setting id="tunepk" type="bool" label="30002" default="false" />
+   <setting id="videoweed" type="bool" label="30003" default="false" />
+   <setting id="youtube" type="bool" label="30004" default="true" />
+</settings>

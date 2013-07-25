@@ -40,6 +40,19 @@ __settings__ = xbmcaddon.Addon(id='plugin.video.paktv')
 # allows us to get mobile version
 user_agent = 'Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_2_1 like Mac OS X; en-us) AppleWebKit/533.17.9 (KHTML, like Gecko) Version/5.0.2 Mobile/8G4 Safari/6533.18.5'
 
+# wanted hosts
+available_hosts = []
+
+# supported by url resolver module
+# match, title, host, setting id
+resolvable_sites = [
+    ('tube.php', 'Youtube', 'youtube.com', 'youtube'),
+    ('daily.php', 'Daily Motion', 'dailymotion.com', 'dailymotion'),
+    ('hb.php', 'Hosting Bulk', 'hostingbulk.com', 'hostingbulk'),
+    ('tune.php', 'Tune PK', 'tune.pk', 'tunepk'),
+    ('vw.php', 'Video Weed', 'videoweed.es', 'videoweed'),
+]
+
 
 def urldecode(query):
     """
@@ -354,15 +367,6 @@ class PaktvPlugin(object):
     base_url = 'http://www.thepaktv.me/forums/'
     section_url_template = 'forumdisplay.php?f='
 
-    # supported by url resolver module
-    resolvable_sites = [
-        ('tube.php', 'Youtube', 'youtube.com'),
-        #('daily.php', 'Daily Motion', 'dailymotion.com'),
-        #('hb.php', 'Hosting Bulk', 'hostingbulk.com'),
-        #('tune.php', 'Tune PK', 'tune.pk'),
-        ('vw.php', 'Video Weed', 'videoweed.es'),
-    ]
-
     frame_menu = [
         ('Today\'s Top Dramas', 'http://www.paktvnetwork.com/Ads/forum/update3/Today/6.html'),
         ('Today\'s Talk Shows', 'http://www.paktvnetwork.com/Ads/forum/update3/Shows/5.html'),
@@ -419,6 +423,22 @@ class PaktvPlugin(object):
     def fetch(self, url):
         return cache.cacheFunction(self.get_url_data, url)
 
+    def get_available_hosts(self):
+        global available_hosts
+
+        if len(available_hosts) == 0:
+            for item in resolvable_sites:
+                setting_id = item[3]
+                try:
+                    enable = self.get_setting(setting_id).lower()
+
+                    if enable == 'true':
+                        available_hosts.append(item)
+                except:
+                    pass
+
+        return available_hosts
+
 ############################################
 
     def action_play_video(self):
@@ -441,11 +461,13 @@ class PaktvPlugin(object):
     # This method will merge them into a unique dictionary
     def get_clean_dictionary(self, ol):
         tdic = {}
+        ah = self.get_available_hosts()
+
         for li in ol:
             key = li['href']
             value = li.text
 
-            for txt, desc, lnk in self.resolvable_sites:
+            for txt, desc, lnk, setting_id in ah:
                 if (key.find(txt) > 0): # match resolvable site
 
                     if not (key in tdic):
