@@ -27,13 +27,13 @@ try:
     from addon.common.addon import Addon
 except:
     from t0mm0.common.addon import Addon
-
+addon = Addon('plugin.video.paktv', argv=sys.argv)
 
 __plugin__ = "paktv"
 __author__ = 'Irfan Charania'
 __url__ = ''
-__date__ = '20-07-2013'
-__version__ = '0.0.4'
+__date__ = '26-07-2013'
+__version__ = '0.0.6'
 __settings__ = xbmcaddon.Addon(id='plugin.video.paktv')
 
 
@@ -46,11 +46,11 @@ available_hosts = []
 # supported by url resolver module
 # match, title, host, setting id
 resolvable_sites = [
-    ('tube.php', 'Youtube', 'youtube.com', 'youtube'),
-    ('daily.php', 'Daily Motion', 'dailymotion.com', 'dailymotion'),
-    ('hb.php', 'Hosting Bulk', 'hostingbulk.com', 'hostingbulk'),
-    ('tune.php', 'Tune PK', 'tune.pk', 'tunepk'),
-    ('vw.php', 'Video Weed', 'videoweed.es', 'videoweed'),
+    ('tube.php', '[COLOR white]Youtube[/COLOR]', 'youtube.com', 'youtube'),
+    ('daily.php', '[COLOR blue]Daily Motion[/COLOR]', 'dailymotion.com', 'dailymotion'),
+    ('hb.php', '[COLOR red]Hosting Bulk[/COLOR]', 'hostingbulk.com', 'hostingbulk'),
+    ('tune.php', '[COLOR green]Tune PK[/COLOR]', 'tune.pk', 'tunepk'),
+    ('vw.php', '[COLOR yellow]Video Weed[/COLOR]', 'videoweed.es', 'videoweed'),
 ]
 
 
@@ -556,7 +556,7 @@ class PaktvPlugin(object):
             self.end_list()
 
         else:
-            Addon.show_error_dialog(["No episodes found."])
+            addon.show_error_dialog(["[B][COLOR red]No episodes found.[/COLOR][/B]"])
             return
 
 
@@ -656,44 +656,53 @@ class PaktvPlugin(object):
 
 
     def action_plugin_root(self):
-        self.add_list_item({
-            'Title': '[B]Bookmarks[/B]',
-            'action': 'browse_bookmarks',
-            'folder_id': 1
-        }, bookmark_parent=0)
+        try:
+            response = requests.head(self.base_url)
 
-        for desc, link in self.frame_menu:
-            self.add_list_item({
-                'Title': desc,
-                'action': 'browse_frames',
-                'remote_url': link
-            })
+            if response.status_code < 400:
+                self.add_list_item({
+                    'Title': '[B]Bookmarks[/B]',
+                    'action': 'browse_bookmarks',
+                    'folder_id': 1
+                }, bookmark_parent=0)
 
-        self.add_list_item({
-            'Title': '[B]Browse Ramzan Specials[/B]',
-            'action': 'get_channel_menu',
-            'sequence': 'ramzan_shows_menu'
-        })
+                for desc, link in self.frame_menu:
+                    self.add_list_item({
+                        'Title': desc,
+                        'action': 'browse_frames',
+                        'remote_url': link
+                    })
 
-        self.add_list_item({
-            'Title': '[B]Browse Pakistani Dramas[/B]',
-            'action': 'get_channel_menu',
-            'sequence': 'drama_channel_menu'
-        })
+                self.add_list_item({
+                    'Title': '[B]Browse Ramzan Specials[/B]',
+                    'action': 'get_channel_menu',
+                    'sequence': 'ramzan_shows_menu'
+                })
 
-        self.add_list_item({
-            'Title': '[B]Browse Morning/Cooking Shows[/B]',
-            'action': 'get_channel_menu',
-            'sequence': 'morning_shows_menu'
-        })
+                self.add_list_item({
+                    'Title': '[B]Browse Pakistani Dramas[/B]',
+                    'action': 'get_channel_menu',
+                    'sequence': 'drama_channel_menu'
+                })
 
-        self.add_list_item({
-            'Title': '[B]Browse Current Affairs Talk Shows[/B]',
-            'action': 'get_channel_menu',
-            'sequence': 'news_shows_menu'
-        })
-        self.end_list()
+                self.add_list_item({
+                    'Title': '[B]Browse Morning/Cooking Shows[/B]',
+                    'action': 'get_channel_menu',
+                    'sequence': 'morning_shows_menu'
+                })
 
+                self.add_list_item({
+                    'Title': '[B]Browse Current Affairs Talk Shows[/B]',
+                    'action': 'get_channel_menu',
+                    'sequence': 'news_shows_menu'
+                })
+                self.end_list()
+
+            else:
+                addon.show_error_dialog(["[B][COLOR red]Website is unavailable.[/COLOR][/B]"])
+
+        except:
+                addon.show_error_dialog(["[B][COLOR red]Website is unavailable.[/COLOR][/B]"])
 
     def __call__(self):
         """
