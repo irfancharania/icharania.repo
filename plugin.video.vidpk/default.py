@@ -19,8 +19,8 @@ except:
 __plugin__ = "vidpk"
 __author__ = 'Irfan Charania'
 __url__ = ''
-__date__ = '25-07-2013'
-__version__ = '0.0.7'
+__date__ = '26-07-2013'
+__version__ = '0.0.8'
 __settings__ = xbmcaddon.Addon(id='plugin.video.vidpk')
 
 
@@ -614,25 +614,40 @@ class VidpkPlugin(object):
         self.end_list('movies', [xbmcplugin.SORT_METHOD_LABEL])
 
     def action_plugin_root(self):
-        self.add_list_item({
-            'Title': '[B]Bookmarks[/B]',
-            'action': 'browse_bookmarks',
-            'folder_id': 1
-        }, bookmark_parent=0)
+        try:
+            status_code = urllib.urlopen('http://vidpk.com').getcode()
 
-        for desc, link in self.menu:
-            self.add_list_item({
-                'Title': desc,
-                'action': 'browse_episodes_xml',
-                'remote_url': link
-            })
+            if status_code < 400:
+                self.add_list_item({
+                    'Title': '[B]Bookmarks[/B]',
+                    'action': 'browse_bookmarks',
+                    'folder_id': 1
+                }, bookmark_parent=0)
 
-        self.add_list_item({
-            'Title': 'Browse Channels',
-            'action': 'get_channels'
-        })
+                for desc, link in self.menu:
+                    self.add_list_item({
+                        'Title': desc,
+                        'action': 'browse_episodes_xml',
+                        'remote_url': link
+                    })
 
-        self.end_list()
+                self.add_list_item({
+                    'Title': 'Browse Channels',
+                    'action': 'get_channels'
+                })
+
+                self.end_list()
+
+            else:
+                dialog = self.get_dialog()
+                dialog.ok('ERROR', "[B][COLOR red]Website is unavailable.[/COLOR][/B]")
+                logging.debug('Website unavailable')
+
+
+        except:
+            dialog = self.get_dialog()
+            dialog.ok('ERROR', "[B][COLOR red]Website is unavailable.[/COLOR][/B]")
+            logging.debug('Website unavailable')
 
     def __call__(self):
         """
