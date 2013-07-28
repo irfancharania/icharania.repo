@@ -32,8 +32,8 @@ addon = Addon('plugin.video.paktv', argv=sys.argv)
 __plugin__ = "paktv"
 __author__ = 'Irfan Charania'
 __url__ = ''
-__date__ = '26-07-2013'
-__version__ = '0.0.6'
+__date__ = '28-07-2013'
+__version__ = '0.0.7'
 __settings__ = xbmcaddon.Addon(id='plugin.video.paktv')
 
 
@@ -460,12 +460,18 @@ class PaktvPlugin(object):
     # e.g. <a href='link1'>part of </a><a href='link1'>title</a>
     # This method will merge them into a unique dictionary
     def get_clean_dictionary(self, ol):
+        msg = ''
+        containsvid = 0
+
         tdic = {}
         ah = self.get_available_hosts()
 
         for li in ol:
             key = li['href']
             value = li.text
+
+            #contains at least one video link
+            if (key.find('v=') > 0): containsvid = 1
 
             for txt, desc, lnk, setting_id in ah:
                 if (key.find(txt) > 0): # match resolvable site
@@ -477,7 +483,11 @@ class PaktvPlugin(object):
                         tdic[key][0] = tdic[key][0] + ' ' + value
 
                     break
-        return tdic
+
+        if (containsvid == 0):
+            msg = '[B][COLOR red]No episodes found.[/COLOR][/B]'
+
+        return tdic, msg
 
 
     def action_get_episode(self):
@@ -490,26 +500,34 @@ class PaktvPlugin(object):
         linklist = soup.find('ol', id='posts').find('blockquote', "postcontent restore").findAll('a')
 
         # clean up bad tags
-        tdic = self.get_clean_dictionary(linklist)
+        tdic, msg = self.get_clean_dictionary(linklist)
 
-        for href, ltxt in sorted(tdic.items(), key=lambda x: x[1][0]):
+        if len(msg) > 0:
+            addon.show_error_dialog([msg])
+            return
+        else:
+            if len(tdic) > 0:
+                for href, ltxt in sorted(tdic.items(), key=lambda x: x[1][0]):
 
-            v = href.find('v=')
-            if (v > 0):
-                vid = href[v+2:]
-                tagline = ltxt[0]
+                    v = href.find('v=')
+                    if (v > 0):
+                        vid = href[v+2:]
+                        tagline = ltxt[0]
 
-                data = {}
-                data.update(self.args)
+                        data = {}
+                        data.update(self.args)
 
-                data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
-                data['action'] = 'play_video'
-                data['remote_url'] = ltxt[1]
-                data['vid'] = vid
+                        data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
+                        data['action'] = 'play_video'
+                        data['remote_url'] = ltxt[1]
+                        data['vid'] = vid
 
-                self.add_list_item(data, is_folder=False)
+                        self.add_list_item(data, is_folder=False)
 
-        self.end_list()
+                self.end_list()
+            else:
+                addon.show_error_dialog(["[B][COLOR red]No episode files exist on your enabled hosts.[/COLOR][/B]"])
+                return
 
 
     def action_browse_episodes(self):
@@ -525,7 +543,7 @@ class PaktvPlugin(object):
         soup = BeautifulSoup(data)
 
         container = soup.find('ul', id='threads')
-        if container:
+        if len(container) > 0:
             linklist = container.findAll('h3')
 
             for l in linklist:

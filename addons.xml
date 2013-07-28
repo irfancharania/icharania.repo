@@ -2,7 +2,7 @@
 <addons>
 <addon id="plugin.video.paktv"
        name="paktv"
-       version="0.0.6"
+       version="0.0.7"
        provider-name="icharania">
   <requires>
     <import addon="xbmc.python" version="2.0"/>
