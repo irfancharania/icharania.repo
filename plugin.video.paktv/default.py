@@ -32,8 +32,8 @@ addon = Addon('plugin.video.paktv', argv=sys.argv)
 __plugin__ = "paktv"
 __author__ = 'Irfan Charania'
 __url__ = ''
-__date__ = '28-07-2013'
-__version__ = '0.0.7'
+__date__ = '30-07-2013'
+__version__ = '0.0.8'
 __settings__ = xbmcaddon.Addon(id='plugin.video.paktv')
 
 
@@ -47,10 +47,11 @@ available_hosts = []
 # match, title, host, setting id
 resolvable_sites = [
     ('tube.php', '[COLOR white]Youtube[/COLOR]', 'youtube.com', 'youtube'),
-    ('daily.php', '[COLOR blue]Daily Motion[/COLOR]', 'dailymotion.com', 'dailymotion'),
+    ('daily.php', '[COLOR orange]Daily Motion[/COLOR]', 'dailymotion.com', 'dailymotion'),
     ('hb.php', '[COLOR red]Hosting Bulk[/COLOR]', 'hostingbulk.com', 'hostingbulk'),
     ('tune.php', '[COLOR green]Tune PK[/COLOR]', 'tune.pk', 'tunepk'),
     ('vw.php', '[COLOR yellow]Video Weed[/COLOR]', 'videoweed.es', 'videoweed'),
+    ('fb.php', '[COLOR blue]Facebook[/COLOR]', 'facebook.com', 'facebook'),
 ]
 
 

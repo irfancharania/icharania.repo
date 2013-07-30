@@ -1,7 +1,8 @@
 <strings>
     <string id="30000">Show Daily Motion links</string>
-    <string id="30001">Show Hosting Bulk links</string>
-    <string id="30002">Show Tune.PK links</string>
-    <string id="30003">Show Video Weed links</string>
-    <string id="30004">Show Youtube links</string>
+    <string id="30010">Show Facebook links</string>
+    <string id="30020">Show Hosting Bulk links</string>
+    <string id="30030">Show Tune.PK links</string>
+    <string id="30040">Show Video Weed links</string>
+    <string id="30050">Show Youtube links</string>
 </strings>
