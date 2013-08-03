@@ -477,8 +477,8 @@ class PaktvPlugin(object):
             if (key.find('v=') > 0): containsvid = 1
 
             for txt, desc, lnk, setting_id in ah:
-                if (key.find(txt) > 0): # match resolvable site
-
+                # has description & match resolvable site
+                if (value and key.find(txt) > 0):
                     if not (key in tdic):
                         arr = ['[B]' + desc + '[/B]: ' + value, lnk]
                         tdic[key] = arr
