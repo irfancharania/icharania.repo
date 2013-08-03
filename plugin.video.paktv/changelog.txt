@@ -1,3 +1,7 @@
+0.0.9 - Added NowVideo and Putlocker
+      - Improved notification message
+      - Fixed error for no episodes found
+
 0.0.8 - Added Facebook Video to resolvable hosts
 
 0.0.7 - Improved notification

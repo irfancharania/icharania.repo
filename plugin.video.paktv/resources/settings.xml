@@ -2,6 +2,8 @@
    <setting id="dailymotion" type="bool" label="30000" default="false"/>
    <setting id="facebook" type="bool" label="30010" default="false"/>
    <setting id="hostingbulk" type="bool" label="30020" default="false"/>
+   <setting id="nowvideo" type="bool" label="30022" default="false"/>
+   <setting id="putlocker" type="bool" label="30026" default="false"/>
    <setting id="tunepk" type="bool" label="30030" default="false" />
    <setting id="videoweed" type="bool" label="30040" default="false" />
    <setting id="youtube" type="bool" label="30050" default="true" />

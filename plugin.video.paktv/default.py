@@ -52,6 +52,8 @@ resolvable_sites = [
     ('tune.php', '[COLOR green]Tune PK[/COLOR]', 'tune.pk', 'tunepk'),
     ('vw.php', '[COLOR yellow]Video Weed[/COLOR]', 'videoweed.es', 'videoweed'),
     ('fb.php', '[COLOR blue]Facebook[/COLOR]', 'facebook.com', 'facebook'),
+    ('nowvideo.php', '[COLOR grey2]Now Video[/COLOR]', 'nowvideo.eu', 'nowvideo'),
+    ('put.php', '[COLOR grey]Putlocker[/COLOR]', 'putlocker.com', 'putlocker'),
 ]
 
 
@@ -527,7 +529,7 @@ class PaktvPlugin(object):
 
                 self.end_list()
             else:
-                addon.show_error_dialog(["[B][COLOR red]No episode files exist on your enabled hosts.[/COLOR][/B]"])
+                addon.show_error_dialog(["[B][COLOR red]No episode files exist on your enabled hosts.[/COLOR][/B]", "Enable other hosts in add-on settings"])
                 return
 
 
@@ -544,7 +546,7 @@ class PaktvPlugin(object):
         soup = BeautifulSoup(data)
 
         container = soup.find('ul', id='threads')
-        if len(container) > 0:
+        if container and len(container) > 0:
             linklist = container.findAll('h3')
 
             for l in linklist:
@@ -675,6 +677,9 @@ class PaktvPlugin(object):
 
 
     def action_plugin_root(self):
+        unavailable_msg = ["[B][COLOR red]Website is unavailable.[/COLOR][/B]", "This add-on cannot access the " + __plugin__ + " website.",
+        "Please try again later."]
+
         try:
             response = requests.head(self.base_url)
 
@@ -718,10 +723,10 @@ class PaktvPlugin(object):
                 self.end_list()
 
             else:
-                addon.show_error_dialog(["[B][COLOR red]Website is unavailable.[/COLOR][/B]"])
+                addon.show_error_dialog(unavailable_msg)
 
         except:
-                addon.show_error_dialog(["[B][COLOR red]Website is unavailable.[/COLOR][/B]"])
+                addon.show_error_dialog(unavailable_msg)
 
     def __call__(self):
         """
