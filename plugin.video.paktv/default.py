@@ -13,6 +13,11 @@ import HTMLParser
 from datetime import datetime
 
 try:
+    import cPickle as pickle
+except:
+    import pickle
+
+try:
     import StorageServer
 except:
     import storageserverdummy as StorageServer
@@ -32,28 +37,25 @@ addon = Addon('plugin.video.paktv', argv=sys.argv)
 __plugin__ = "paktv"
 __author__ = 'Irfan Charania'
 __url__ = ''
-__date__ = '30-07-2013'
-__version__ = '0.0.8'
+__date__ = '04-08-2013'
+__version__ = '0.1.1'
 __settings__ = xbmcaddon.Addon(id='plugin.video.paktv')
 
 
 # allows us to get mobile version
 user_agent = 'Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_2_1 like Mac OS X; en-us) AppleWebKit/533.17.9 (KHTML, like Gecko) Version/5.0.2 Mobile/8G4 Safari/6533.18.5'
 
-# wanted hosts
-available_hosts = []
-
 # supported by url resolver module
 # match, title, host, setting id
 resolvable_sites = [
-    ('tube.php', '[COLOR white]Youtube[/COLOR]', 'youtube.com', 'youtube'),
-    ('daily.php', '[COLOR orange]Daily Motion[/COLOR]', 'dailymotion.com', 'dailymotion'),
-    ('hb.php', '[COLOR red]Hosting Bulk[/COLOR]', 'hostingbulk.com', 'hostingbulk'),
-    ('tune.php', '[COLOR green]Tune PK[/COLOR]', 'tune.pk', 'tunepk'),
-    ('vw.php', '[COLOR yellow]Video Weed[/COLOR]', 'videoweed.es', 'videoweed'),
-    ('fb.php', '[COLOR blue]Facebook[/COLOR]', 'facebook.com', 'facebook'),
-    ('nowvideo.php', '[COLOR grey2]Now Video[/COLOR]', 'nowvideo.eu', 'nowvideo'),
-    ('put.php', '[COLOR grey]Putlocker[/COLOR]', 'putlocker.com', 'putlocker'),
+    ('tube.php', '[COLOR white]Youtube[/COLOR]', 'youtube.com'),
+    ('daily.php', '[COLOR orange]Daily Motion[/COLOR]', 'dailymotion.com'),
+    ('hb.php', '[COLOR red]Hosting Bulk[/COLOR]', 'hostingbulk.com'),
+    ('tune.php', '[COLOR green]Tune PK[/COLOR]', 'tune.pk'),
+    ('vw.php', '[COLOR yellow]Video Weed[/COLOR]', 'videoweed.es'),
+    ('fb.php', '[COLOR blue]Facebook[/COLOR]', 'facebook.com'),
+    ('nowvideo.php', '[COLOR grey2]Now Video[/COLOR]', 'nowvideo.eu'),
+    ('put.php', '[COLOR grey]Putlocker[/COLOR]', 'putlocker.com'),
 ]
 
 
@@ -427,72 +429,84 @@ class PaktvPlugin(object):
         return cache.cacheFunction(self.get_url_data, url)
 
     def get_available_hosts(self):
-        global available_hosts
-
-        if len(available_hosts) == 0:
-            for item in resolvable_sites:
-                setting_id = item[3]
-                try:
-                    enable = self.get_setting(setting_id).lower()
-
-                    if enable == 'true':
-                        available_hosts.append(item)
-                except:
-                    pass
-
-        return available_hosts
+        return resolvable_sites
 
 ############################################
 
+    def add_stream_to_playlist(self, media, playlist):
+        if media:
+            stream_url = media.resolve()
+            if stream_url:
+                playlist.add(stream_url)
+                logging.debug('adding stream to playlist: %s' % stream_url)
+
+
+    def action_play_video_continuous(self):
+        dic = self.args['media']
+        byhostdic = pickle.loads(dic)
+
+        source = urlresolver.choose_source([x[1][0] for x in byhostdic.items()])
+        if source:
+            host = source.get_host()
+            logging.debug('play from host: %s' % host)
+
+            playlist = xbmc.PlayList(1)
+            playlist.clear()
+
+            # add to playlist
+            map(lambda x: self.add_stream_to_playlist(x, playlist), byhostdic[host])
+
+            xbmc.Player().play(playlist)
+
+
     def action_play_video(self):
-        remote_url = self.args['remote_url']
-        vid = self.args['vid']
+        media = self.args['media']
+        dl = pickle.loads(media)
 
-        hmf = urlresolver.HostedMediaFile(host=remote_url, media_id=vid)
-        if hmf:
-            url = hmf.resolve()
-            logging.debug('play video: %s' % url)
-
-            if url:
-                return self.set_stream_url(url)
+        source = urlresolver.choose_source(dl)
+        if source:
+            stream_url = source.resolve()
         else:
-            raise Exception('unable to play')
+            stream_url = False
+
+        logging.debug('play episode: %s' % stream_url)
+        #Play the stream
+        if stream_url:
+            addon.resolve_url(stream_url)
+        else:
+            addon.show_error_dialog(["[B][COLOR red]Unable to play video[/COLOR][/B]", "Please choose another source"])
+            return
+
 
 
     # There are a lot of mal-formed links
     # e.g. <a href='link1'>part of </a><a href='link1'>title</a>
     # This method will merge them into a unique dictionary
     def get_clean_dictionary(self, ol):
-        msg = ''
-        containsvid = 0
-
         tdic = {}
         ah = self.get_available_hosts()
 
         for li in ol:
             key = li['href']
             value = li.text
+            if value:
+                for txt, desc, host in ah:
+                    # has description & match resolvable site
+                    if (key.find(txt) > 0):
+                        if not (key in tdic):
+                            v = key.find('v=')
+                            if (v > 0): vid = key[v+2:]
+                            if len(vid) > 0:
+                                arr = [value, host, vid]
+                                tdic[key] = arr
+                        else:
+                            tdic[key][0] = tdic[key][0] + ' ' + value
 
-            #contains at least one video link
-            if (key.find('v=') > 0): containsvid = 1
-
-            for txt, desc, lnk, setting_id in ah:
-                # has description & match resolvable site
-                if (value and key.find(txt) > 0):
-                    if not (key in tdic):
-                        arr = ['[B]' + desc + '[/B]: ' + value, lnk]
-                        tdic[key] = arr
-                    else:
-                        tdic[key][0] = tdic[key][0] + ' ' + value
-
-                    break
-
-        if (containsvid == 0):
-            msg = '[B][COLOR red]No episodes found.[/COLOR][/B]'
-
-        return tdic, msg
+                        break
+        return tdic
 
 
+    # This has turned into a mess...
     def action_get_episode(self):
         remote_url = self.args['remote_url']
         logging.debug('get episode: %s' % remote_url)
@@ -503,34 +517,75 @@ class PaktvPlugin(object):
         linklist = soup.find('ol', id='posts').find('blockquote', "postcontent restore").findAll('a')
 
         # clean up bad tags
-        tdic, msg = self.get_clean_dictionary(linklist)
+        tdic = self.get_clean_dictionary(linklist)
 
-        if len(msg) > 0:
-            addon.show_error_dialog([msg])
-            return
-        else:
-            if len(tdic) > 0:
-                for href, ltxt in sorted(tdic.items(), key=lambda x: x[1][0]):
 
-                    v = href.find('v=')
-                    if (v > 0):
-                        vid = href[v+2:]
-                        tagline = ltxt[0]
+        if len(tdic) > 0:
+            bypartdic = {}
+            byhostdic = {}
 
-                        data = {}
-                        data.update(self.args)
+            for __, item in tdic.items():
+                partnum = re.compile('[pP]art\s*(\d+)').findall(item[0])
+                if partnum and len(partnum) > 0:
+                    part = 'Part {partnum}'.format(partnum=partnum[0])
+                    host = item[1]
+                    vid = item[2]
+                    #title = "[B]{host}[/B] ::: {part}".format(host=host, part=part)
+                    title = "[B]{host}[/B]".format(host=host)
+                else:
+                    ''' assume it is a single link '''
+                    part = 'Single link'
+                    host = item[1]
+                    vid = item[2]
+                    title = "[B]{host}[/B]".format(host=host)
 
-                        data['Title'] = HTMLParser.HTMLParser().unescape(tagline)
-                        data['action'] = 'play_video'
-                        data['remote_url'] = ltxt[1]
-                        data['vid'] = vid
+                if part:
+                    media = urlresolver.HostedMediaFile(host=host
+                                                        , media_id=vid
+                                                        , title=title)
 
-                        self.add_list_item(data, is_folder=False)
+                    if len(media.get_url()) > 0:
+                        if not (part in bypartdic):
+                            bypartdic[part] = [media]
+                        else:
+                            bypartdic[part].append(media)
 
-                self.end_list()
+
+            if len(bypartdic) > 0:
+                for key, value in bypartdic.items():
+                    self.add_list_item({
+                        'Title': key,
+                        'action': 'play_video',
+                        'media': pickle.dumps(value)
+                    }, is_folder=False)
+
+
+                # do not offer continuous play if only 1 part
+                # and if there is a single link available
+                if ((not 'Single link' in bypartdic) and
+                    (len(bypartdic) > 1)):
+
+                    # Add sorted parts by host
+                    for part, medialist in sorted(bypartdic.items()):
+                        for media in medialist:
+                            host = media.get_host()
+                            byhostdic.setdefault(host, []).append(media)
+
+                    self.add_list_item({
+                        'Title': 'Continuous Play (EXPERIMENTAL)',
+                        'action': 'play_video_continuous',
+                        'media': pickle.dumps(byhostdic)
+                    }, is_folder=False)
+
+
+                self.end_list(sort_methods=(xbmcplugin.SORT_METHOD_LABEL,))
             else:
-                addon.show_error_dialog(["[B][COLOR red]No episode files exist on your enabled hosts.[/COLOR][/B]", "Enable other hosts in add-on settings"])
+                addon.show_error_dialog(['[B][COLOR red]No episodes found in your enabled hosts.[/COLOR][/B]',
+                    'Please check urlresolver settings'])
                 return
+        else:
+            addon.show_error_dialog(['[B][COLOR red]No episodes found.[/COLOR][/B]'])
+            return
 
 
     def action_browse_episodes(self):
@@ -623,7 +678,6 @@ class PaktvPlugin(object):
             data['remote_url'] = self.base_url + link
             self.add_list_item(data)
 
-            logging.debug(data)
         self.end_list()
 
 
@@ -676,6 +730,10 @@ class PaktvPlugin(object):
         self.end_list(sort_methods=(xbmcplugin.SORT_METHOD_LABEL,))
 
 
+    def action_get_urlresolver_settings(self):
+        urlresolver.display_settings()
+
+
     def action_plugin_root(self):
         unavailable_msg = ["[B][COLOR red]Website is unavailable.[/COLOR][/B]", "This add-on cannot access the " + __plugin__ + " website.",
         "Please try again later."]
@@ -720,6 +778,12 @@ class PaktvPlugin(object):
                     'action': 'get_channel_menu',
                     'sequence': 'news_shows_menu'
                 })
+
+                self.add_list_item({
+                    'Title': '[B][COLOR white]Url Resolver Settings[/COLOR][/B]',
+                    'action': 'get_urlresolver_settings'
+                })
+
                 self.end_list()
 
             else:
