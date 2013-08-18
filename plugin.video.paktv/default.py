@@ -1,16 +1,17 @@
-import os, sys
-import shutil
-import sha
-import cgi
-import xbmc, xbmcaddon, xbmcgui, xbmcplugin
-import requests, urlresolver
+import os
+import sys
+import xbmc
+import xbmcaddon
+import xbmcgui
+import xbmcplugin
+import requests
+import urlresolver
 from BeautifulSoup import BeautifulSoup
 import logging
 logging.basicConfig(level=logging.DEBUG)
-import urllib, urllib2, urlparse, re, string
-import time
+import urllib
+import re
 import HTMLParser
-from datetime import datetime
 
 try:
     import cPickle as pickle
@@ -37,13 +38,13 @@ addon = Addon('plugin.video.paktv', argv=sys.argv)
 __plugin__ = "paktv"
 __author__ = 'Irfan Charania'
 __url__ = ''
-__date__ = '04-08-2013'
-__version__ = '0.1.1'
+__date__ = '18-08-2013'
+__version__ = '0.1.2'
 __settings__ = xbmcaddon.Addon(id='plugin.video.paktv')
 
 
 # allows us to get mobile version
-user_agent = 'Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_2_1 like Mac OS X; en-us) AppleWebKit/533.17.9 (KHTML, like Gecko) Version/5.0.2 Mobile/8G4 Safari/6533.18.5'
+user_agent = 'Mozilla/5.0 (Linux; U; Android 4.0.4; en-gb; GT-I9300 Build/IMM76D) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30'
 
 # supported by url resolver module
 # match, title, host, setting id
@@ -51,6 +52,7 @@ resolvable_sites = [
     ('tube.php', '[COLOR white]Youtube[/COLOR]', 'youtube.com'),
     ('daily.php', '[COLOR orange]Daily Motion[/COLOR]', 'dailymotion.com'),
     ('hb.php', '[COLOR red]Hosting Bulk[/COLOR]', 'hostingbulk.com'),
+    ('hostingbulk.php', '[COLOR red]Hosting Bulk[/COLOR]', 'hostingbulk.com'),
     ('tune.php', '[COLOR green]Tune PK[/COLOR]', 'tune.pk'),
     ('vw.php', '[COLOR yellow]Video Weed[/COLOR]', 'videoweed.es'),
     ('fb.php', '[COLOR blue]Facebook[/COLOR]', 'facebook.com'),
@@ -68,7 +70,7 @@ def urldecode(query):
     a = query.split('&')
     for s in a:
         if '=' in s:
-            k,v = map(urllib.unquote_plus, s.split('='))
+            k, v = map(urllib.unquote_plus, s.split('='))
             if v == 'None':
                 v = None
             d[k] = v
@@ -78,7 +80,8 @@ def urldecode(query):
 class PaktvPlugin(object):
 
     def connect_to_db(self):
-        path = xbmc.translatePath('special://profile/addon_data/plugin.video.paktv/')
+        path = xbmc.translatePath(
+            'special://profile/addon_data/plugin.video.paktv/')
         if not os.path.exists(path):
             os.makedirs(path)
         self.db_conn = sqlite.connect(os.path.join(path, 'bookmarks.db'))
@@ -98,11 +101,11 @@ class PaktvPlugin(object):
         )""")
 
         try:
-            curs.execute("""insert into bookmark_folders (id, name, parent_id, path)
-                        values (?,?,?,?)""", (1,'Bookmarks', 0, 'Bookmarks'))
+            curs.execute(
+                """insert into bookmark_folders (id, name, parent_id, path)
+                values (?,?,?,?)""", (1,'Bookmarks', 0, 'Bookmarks'))
         except:
             pass
-
 
     def get_url(self,urldata):
         """
@@ -111,10 +114,8 @@ class PaktvPlugin(object):
         """
         return "%s?%s" % (self.script_url, urllib.urlencode(urldata,1))
 
-
     def get_dialog(self):
         return xbmcgui.Dialog()
-
 
     def set_stream_url(self, url, info=None):
         """
@@ -137,14 +138,12 @@ class PaktvPlugin(object):
             xbmcplugin.addSortMethod(self.handle, sm)
         xbmcplugin.endOfDirectory(self.handle, succeeded=True)
 
-
     def get_setting(self, id):
         """
         return a user-modifiable plugin setting.
 
         """
         return __settings__.getSetting(id)
-
 
     def add_list_item(self, info, is_folder=True, return_only=False,
                       context_menu_items=None, clear_context_menu=False,
@@ -540,16 +539,15 @@ class PaktvPlugin(object):
                     title = "[B]{host}[/B]".format(host=host)
 
                 if part:
-                    media = urlresolver.HostedMediaFile(host=host
-                                                        , media_id=vid
-                                                        , title=title)
+                    media = urlresolver.HostedMediaFile(host=host,
+                                                        media_id=vid,
+                                                        title=title)
 
                     if len(media.get_url()) > 0:
                         if not (part in bypartdic):
                             bypartdic[part] = [media]
                         else:
                             bypartdic[part].append(media)
-
 
             if len(bypartdic) > 0:
                 for key, value in bypartdic.items():
@@ -559,11 +557,10 @@ class PaktvPlugin(object):
                         'media': pickle.dumps(value)
                     }, is_folder=False)
 
-
                 # do not offer continuous play if only 1 part
                 # and if there is a single link available
                 if ((not 'Single link' in bypartdic) and
-                    (len(bypartdic) > 1)):
+                        (len(bypartdic) > 1)):
 
                     # Add sorted parts by host
                     for part, medialist in sorted(bypartdic.items()):
@@ -586,7 +583,6 @@ class PaktvPlugin(object):
         else:
             addon.show_error_dialog(['[B][COLOR red]No episodes found.[/COLOR][/B]'])
             return
-
 
     def action_browse_episodes(self):
         remote_url = self.args['remote_url']
@@ -635,7 +631,6 @@ class PaktvPlugin(object):
             addon.show_error_dialog(["[B][COLOR red]No episodes found.[/COLOR][/B]"])
             return
 
-
     # identify forum sections/subsections
     def get_parents(self, linklist):
         newlist = []
@@ -667,6 +662,9 @@ class PaktvPlugin(object):
             tagline = HTMLParser.HTMLParser().unescape(l.a.text)
             link = l.a['href']
 
+            #if l.img['src'].find('new') > 0:
+            #    tagline = '[COLOR green][B]+[/B][/COLOR] ' + tagline
+
             if l.has_key('data-has-children'):
                 action = 'browse_shows'
                 tagline = '[B]' + tagline + '[/B]'
@@ -679,7 +677,6 @@ class PaktvPlugin(object):
             self.add_list_item(data)
 
         self.end_list()
-
 
     def action_browse_frames(self):
         remote_url = self.args['remote_url']
@@ -707,7 +704,6 @@ class PaktvPlugin(object):
             self.add_list_item(data)
         self.end_list(sort_methods=(xbmcplugin.SORT_METHOD_LABEL,))
 
-
     def action_get_channel_menu(self):
         sequence = self.args['sequence']
         channels = []
@@ -729,14 +725,14 @@ class PaktvPlugin(object):
             })
         self.end_list(sort_methods=(xbmcplugin.SORT_METHOD_LABEL,))
 
-
     def action_get_urlresolver_settings(self):
         urlresolver.display_settings()
 
-
     def action_plugin_root(self):
-        unavailable_msg = ["[B][COLOR red]Website is unavailable.[/COLOR][/B]", "This add-on cannot access the " + __plugin__ + " website.",
-        "Please try again later."]
+        unavailable_msg = [
+            "[B][COLOR red]Website is unavailable.[/COLOR][/B]",
+            "This add-on cannot access the " + __plugin__ + " website.",
+            "Please try again later."]
 
         try:
             response = requests.head(self.base_url)
@@ -804,7 +800,6 @@ class PaktvPlugin(object):
 
         action_method = getattr(self, 'action_%s' % (action, ))
         return action_method()
-
 
     def __init__(self, script_url, handle, querystring):
         self.script_url = script_url
