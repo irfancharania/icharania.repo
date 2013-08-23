@@ -1,3 +1,5 @@
+0.0.5 - Update sort
+
 0.0.4 - Added Continuous Play
 
 0.0.3 - Ignore promo links
