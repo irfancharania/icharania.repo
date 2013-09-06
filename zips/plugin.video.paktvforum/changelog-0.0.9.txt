@@ -1,3 +1,6 @@
+0.0.9 - Add live streams from xml (specify url)
+      - Fix match str bug
+
 0.0.8 - Ignore preview links
 
 0.0.7 - Refactor
