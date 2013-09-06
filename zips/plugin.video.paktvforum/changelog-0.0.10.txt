@@ -1,3 +1,5 @@
+0.0.10 - Add error message for failed live stream parsing
+
 0.0.9 - Add live streams from xml (specify url)
       - Fix match str bug
 
