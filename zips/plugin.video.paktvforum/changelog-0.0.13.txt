@@ -1,3 +1,6 @@
+0.0.13 - Add MTV in DesiRulez
+       - Add movshare host
+
 0.0.12 - Fix for DesiRulez generic links ('video.php')
 
 0.0.11 - Fix bookmark sorting
