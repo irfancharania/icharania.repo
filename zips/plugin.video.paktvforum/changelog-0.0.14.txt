@@ -1,3 +1,5 @@
+0.0.14 - Fix unicode to ascii error in url
+
 0.0.13 - Add MTV in DesiRulez
        - Add movshare host
 
