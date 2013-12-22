@@ -1,3 +1,7 @@
+0.0.15 - Add videotanker host
+       - Add null check for livestream xml
+       - Update forum ID regex
+
 0.0.14 - Fix unicode to ascii error in url
 
 0.0.13 - Add MTV in DesiRulez
