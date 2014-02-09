@@ -4,7 +4,7 @@ import sha
 import cgi
 import xbmc, xbmcaddon, xbmcgui, xbmcplugin
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 import urllib, urllib2, urlparse, re, string, xml.etree.ElementTree as ET
 import time
 import simplejson as json
@@ -19,8 +19,8 @@ except:
 __plugin__ = "vidpk"
 __author__ = 'Irfan Charania'
 __url__ = ''
-__date__ = '26-07-2013'
-__version__ = '0.0.8'
+__date__ = '09-02-2014'
+__version__ = '0.0.9'
 __settings__ = xbmcaddon.Addon(id='plugin.video.vidpk')
 
 
@@ -451,7 +451,7 @@ class VidpkPlugin(object):
     ]
 
     def action_play_video(self):
-        url_template = 'http://vidpk.com/playlist.php?v=%s'
+        url_template = 'https://vidpk.com/player_config.php?vid=%s'
         remote_url = url_template % (self.args['clipid'])
 
         logging.debug(remote_url)
@@ -461,9 +461,8 @@ class VidpkPlugin(object):
         tree = ET.parse(data)
         root = tree.getroot()
 
-        namespace = "{http://xspf.org/ns/0/}"
-        e = root.findall('{0}trackList/{0}track/{0}location'.format(namespace))
-        url = e[1].text
+        e = root.findall('file')
+        url = e[0].text
 
         logging.debug(url)
 
