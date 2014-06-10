@@ -61,6 +61,7 @@
     <import addon="xbmc.python" version="2.1.0"/>
     <import addon="script.module.xbmcswift2" version="2.4.0"/>
     <import addon="script.module.beautifulsoup" version="3.0.8"/>
+    <import addon="script.module.addon.common"/>
     <import addon="script.module.urlresolver"/>
     <import addon="script.module.requests"/>
   </requires>
