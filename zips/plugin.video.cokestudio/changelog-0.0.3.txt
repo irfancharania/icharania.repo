@@ -1,0 +1,8 @@
+0.0.3 - Set default seasons for config files
+		(pk site change removed previous seasons)
+
+0.0.2 - Update language strings
+        Add bookmarks
+        Add caching
+
+0.0.1 - Initial release
