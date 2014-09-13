@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="repository.icharania" name="icharania repo" version="1.0.2" provider-name="icharania">
+<addon id="repository.icharania" name="icharania repo" version="1.0.3" provider-name="Irfan Charania">
 	<extension point="xbmc.addon.repository" name="icharania repo">
 		<info compressed="false">https://raw.github.com/irfancharania/icharania.repo/master/addons.xml</info>
-		<checksum>https://raw.github.com/irfancharania/icharania/master/addons.xml.md5</checksum>
+		<checksum>https://raw.github.com/irfancharania/icharania.repo/master/addons.xml.md5</checksum>
 		<datadir zip="true">https://raw.github.com/irfancharania/icharania.repo/master/zips</datadir>
 	</extension>
 	<extension point="xbmc.addon.metadata">
