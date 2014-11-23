@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.cokestudio" name="Coke Studio" version="0.0.4" provider-name="Irfan Charania">
+<addon id="plugin.video.cokestudio" name="Coke Studio" version="0.0.5" provider-name="Irfan Charania">
   <requires>
     <import addon="xbmc.python" version="2.1.0"/>
     <import addon="script.module.xbmcswift2" version="2.4.0"/>
@@ -15,8 +15,22 @@
   <extension point="xbmc.addon.metadata">
     <platform>all</platform>
     <language></language>
-    <summary>Coke Studio</summary>
-    <description>Coke Studio is a music television series which features live studio-recorded music performances by various artists.</description>
+    <summary>Coke Studio is a music television series which features live studio-recorded music performances by various artists.</summary>
+    <description>Coke Studio is a Pakistani music television series which features live studio-recorded music performances by various artists. The show is produced by the Coca-Cola Company and Frequency Media. Starting in 2008, Coke Studio has been receiving critical acclaim and frequently being rebroadcast on numerous television and radio stations. It is one of the most popular music programmes in Asia and is a local brand product of Coca-Cola.
+
+    The program focuses on a fusion of the diverse musical influences in Pakistan, including eastern classical, folk, qawwali, bhangra, Sufi and contemporary hip hop, rock and pop music. The show provides a platform for renowned as well as upcoming and less mainstream artists, of various genres, regions and languages, to collaborate musically in live studio recording sessions.
+
+    This addon features streaming content from the following Coke Studio sessions
+
+    Pakistan (English)
+    India (English)
+    Middle East (English/Arabic)
+    Mozambique (Portuguese)
+    Tanzania (English/Swahili)
+    Nigeria (English/French)
+    Kenya (English/French/Swahili)
+    Uganda (English/Swahili)
+    </description>
     <disclaimer>This addon makes no warranties, expressed or implied, and
     hereby disclaims and negates all other warranties, including without
     limitation, implied warranties or conditions of merchantability,
