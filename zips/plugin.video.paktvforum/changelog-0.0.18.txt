@@ -1,3 +1,6 @@
+0.0.18 - Update paktv forum site url to thepaktv.net
+       - Add ARY Zindagi and Hum Sitaray channel
+
 0.0.17 - Update paktv forum site url to geopaktv.com
 
 0.0.16 - Ignore empty items in livestream xml
