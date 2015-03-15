@@ -1,3 +1,6 @@
+0.0.20 - Add ApnaDramas
+       - Remove DesiRulez
+
 0.0.19 - Remove old frames menu items from paktv
        - Sort by and show new shows first
 
