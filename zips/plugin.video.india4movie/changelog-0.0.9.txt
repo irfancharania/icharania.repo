@@ -1,0 +1,18 @@
+0.0.9 - Update movie list parser
+
+0.0.8 - Add search
+
+0.0.7 - Update links to parse
+      - List movies without thumbnails
+
+0.0.6 - Update links to parse
+
+0.0.5 - Fix next link
+
+0.0.4 - Update site link
+
+0.0.3 - Fetch links on movie page
+
+0.0.2 - Fix missing api name
+
+0.0.1 - Rough testing
