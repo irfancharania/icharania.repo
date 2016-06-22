@@ -99,7 +99,7 @@ YouTube</description>
     </extension>
 </addon>
 
-<addon id="plugin.video.paktvforum" name="PakTVForum" version="0.0.21" provider-name="Irfan Charania">
+<addon id="plugin.video.paktvforum" name="PakTVForum" version="0.0.22" provider-name="Irfan Charania">
   <requires>
     <import addon="xbmc.python" version="2.1.0"/>
     <import addon="script.module.xbmcswift2" version="2.4.0"/>
